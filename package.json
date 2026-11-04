@@ -1,0 +1,9 @@
+{
+  "name": "ssc-training-portal",
+  "private": true,
+  "dependencies": {
+    "@netlify/functions": "3.1.10",
+    "fflate": "0.8.2",
+    "postgres": "3.4.5"
+  }
+}

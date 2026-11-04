@@ -58,4 +58,8 @@ m = re.search(r"^window\.API_URL\s*=\s*'([^']*)'", open(f'{OUT}/config.js', enco
 api = m.group(1) if m else ''
 os.makedirs('netlify/functions', exist_ok=True)
 open('netlify/functions/home.mjs', 'w', encoding='utf-8').write(open('netlify/home.template.mjs', encoding='utf-8').read().replace('__API_URL__', api))
+# หลังบ้านชุดใหม่ (Netlify Functions + Supabase) ใช้โค้ด Code.gs ชุดเดียวกัน
+import json
+os.makedirs('netlify/lib', exist_ok=True)
+open('netlify/lib/code.mjs', 'w', encoding='utf-8').write('// สร้างอัตโนมัติจาก app/Code.gs โดย build_netlify.py ห้ามแก้ไฟล์นี้โดยตรง\nexport default ' + json.dumps(open('app/Code.gs', encoding='utf-8').read(), ensure_ascii=False) + ';\n')
 print('built', sorted(os.listdir(OUT)))

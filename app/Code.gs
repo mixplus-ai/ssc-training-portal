@@ -749,6 +749,22 @@ def_('saveSettings', 'admin', function (p) {
   return true;
 });
 
+// ส่งอีเมลแทนหลังบ้านชุดใหม่ (Netlify + Supabase) เพื่อใช้บัญชี Google และโควตาเดิม ป้องกันด้วยรหัสลับ MAIL_RELAY_KEY
+def_('relayMail', null, function (p) {
+  var want = String(PropertiesService.getScriptProperties().getProperty('MAIL_RELAY_KEY') || getSetting_('MAIL_RELAY_KEY') || '');
+  if (want.length < 24 || String(p.key || '') !== want) throw new Error('ไม่ได้รับอนุญาต');
+  var sent = 0;
+  (p.mails || []).slice(0, 50).forEach(function (m) {
+    if (!m || !m.to) return;
+    var o = { to: m.to, subject: m.subject || '', htmlBody: m.htmlBody || '' };
+    if (m.name) o.name = m.name;
+    if (m.replyTo) o.replyTo = m.replyTo;
+    o.attachments = (m.attachments || []).map(function (a) { return Utilities.newBlob(Utilities.base64Decode(a.data), a.mimeType, a.name); });
+    MailApp.sendEmail(o); sent++;
+  });
+  return { sent: sent, quota: MailApp.getRemainingDailyQuota() };
+});
+
 // ====== กติกาการจอง / เลื่อน / ระงับสิทธิ์ ======
 function bookingRules_(user) {
   var regs = readTable_('Registrations');
