@@ -52,4 +52,10 @@ open(f'{OUT}/netlify.toml', 'w', encoding='utf-8').write('''[build]
   [headers.values]
     Cache-Control = "no-cache"
 ''')
+# ฟังก์ชัน Netlify: แคชข้อมูลหน้าแรกไว้ที่ CDN ของ Netlify (ใช้ได้เมื่อ deploy ผ่าน GitHub)
+import re
+m = re.search(r"^window\.API_URL\s*=\s*'([^']*)'", open(f'{OUT}/config.js', encoding='utf-8').read(), re.M)
+api = m.group(1) if m else ''
+os.makedirs('netlify/functions', exist_ok=True)
+open('netlify/functions/home.mjs', 'w', encoding='utf-8').write(open('netlify/home.template.mjs', encoding='utf-8').read().replace('__API_URL__', api))
 print('built', sorted(os.listdir(OUT)))

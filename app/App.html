@@ -133,10 +133,19 @@ async function run(action, payload, opt) {
 }
 // ข้อมูลหน้าแรก: รวมคำขอที่ซ้ำกันภายใน 5 วิ และจำไว้ในเครื่องเพื่อเปิดหน้าครั้งต่อไปได้ทันที
 let HOME_P = null, HOME_T = 0;
+// บน Netlify (deploy ผ่าน GitHub) ข้อมูลหน้าแรกมาจากแคชของ Netlify ที่ /api/home ซึ่งเร็วกว่าเรียก Apps Script ตรง
+let EDGE_OFF = false;
+function edgeHome() {
+  if (EDGE_OFF || !window.API_URL || !/^https?:$/.test(location.protocol)) return Promise.reject(new Error('no edge'));
+  return fetch('/api/home', { headers: { Accept: 'application/json' } })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('edge ' + r.status)))
+    .then(j => { if (j && j.ok) return j.data; throw new Error('edge'); })
+    .catch(e => { EDGE_OFF = true; throw e; });
+}
 function fetchHome(force) {
   if (!force && HOME_P && Date.now() - HOME_T < 5000) return HOME_P;
   HOME_T = Date.now();
-  HOME_P = call('publicHome', {}).then(d => {
+  HOME_P = edgeHome().catch(() => call('publicHome', {})).then(d => {
     LS.set('tp_home', JSON.stringify(d)); S.banners = d.banners || {}; S.settings = Object.assign(S.settings, d.settings); return d;
   }).catch(e => { HOME_P = null; throw e; });
   return HOME_P;

@@ -1,2 +1,10 @@
 [build]
   publish = "netlify-site"
+
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/config.js"
+  [headers.values]
+    Cache-Control = "no-cache"
