@@ -121,7 +121,7 @@ function setup() {
   getSecret_();
   var hasTrigger = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyJobs'; });
   if (!hasTrigger) ScriptApp.newTrigger('dailyJobs').timeBased().everyDays(1).atHour(8).create();
-  CacheService.getScriptCache().remove('settings');
+  CacheService.getScriptCache().remove('settings'); bustPub_();
   return 'ติดตั้งเรียบร้อย';
 }
 
@@ -148,10 +148,14 @@ function def_(name, auth, run) { API[name] = { auth: auth, run: run }; }
 
 // ---------- Public ----------
 def_('publicHome', null, function () {
-  return {
+  var cache = CacheService.getScriptCache(), key = pubKey_(), hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  var data = {
     settings: publicSettings_(), courses: activeCourses_(), banners: banners_(),
     sessions: sessionsWithStats_().filter(function (s) { return s.status === 'open' && s.date >= today_(); }).map(publicSession_)
   };
+  try { var json = JSON.stringify(data); if (json.length < 95000) cache.put(key, json, 120); } catch (e) { }
+  return data;
 });
 
 def_('register', null, function (p) {
@@ -734,7 +738,7 @@ def_('saveSettings', 'admin', function (p) {
     if (i >= 0) sh.getRange(i + 2, 2).setValue(p.settings[k]); else sh.appendRow([k, p.settings[k], '']);
   });
   CacheService.getScriptCache().remove('settings');
-  delete TABLE_CACHE_['Settings'];
+  delete TABLE_CACHE_['Settings']; bustPub_();
   return true;
 });
 
@@ -897,7 +901,12 @@ function templateDataUrl_(tpl) {
 }
 
 // ====== Helpers: data ======
-function ss_() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
+var SS_ = null;
+function ss_() { return SS_ || (SS_ = SpreadsheetApp.openById(SPREADSHEET_ID)); }
+/** ข้อมูลหน้าแรกเก็บในแคช 2 นาที ล้างทันทีเมื่อมีการแก้รอบอบรม หลักสูตร แบนเนอร์ การลงทะเบียน หรือการตั้งค่า */
+var PUB_TABLES_ = ['Sessions', 'Courses', 'Banners', 'Registrations', 'Settings'];
+function pubKey_() { return 'pub_home_' + today_(); }
+function bustPub_(name) { if (!name || PUB_TABLES_.indexOf(name) >= 0) { try { CacheService.getScriptCache().remove(pubKey_()); } catch (e) { } } }
 var TABLE_CACHE_ = {};
 function readTable_(name) {
   if (TABLE_CACHE_[name]) return TABLE_CACHE_[name].map(function (o) { return Object.assign({}, o); });
@@ -931,12 +940,12 @@ function sheet_(name) {
 }
 function headers_(name) { var sh = sheet_(name); return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]; }
 function insert_(name, obj) {
-  delete TABLE_CACHE_[name];
+  delete TABLE_CACHE_[name]; bustPub_(name);
   var h = headers_(name);
   sheet_(name).appendRow(h.map(function (k) { return toCell_(k, obj[k]); }));
 }
 function update_(name, id, patch) {
-  delete TABLE_CACHE_[name];
+  delete TABLE_CACHE_[name]; bustPub_(name);
   var sh = sheet_(name), h = headers_(name);
   var ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return r[0]; });
   var i = ids.indexOf(id);
@@ -950,7 +959,7 @@ function update_(name, id, patch) {
   range.setValues([row]);
 }
 function remove_(name, id) {
-  delete TABLE_CACHE_[name];
+  delete TABLE_CACHE_[name]; bustPub_(name);
   var sh = sheet_(name);
   var ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return r[0]; });
   var i = ids.indexOf(id);

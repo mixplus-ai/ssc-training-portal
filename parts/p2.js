@@ -2,7 +2,7 @@
 // ====================== SCHEDULE (calendar left · details right) ======================
 VIEWS.schedule = async el => {
   el.innerHTML = `<div class="wrap page"><div class="skeleton" style="height:360px"></div></div>`;
-  const d = S.user ? await call('listSessions', {}) : await call('publicHome', {});
+  const d = S.user ? await call('listSessions', {}) : await fetchHome();
   S.banners = d.banners || S.banners || {};
   if (d.me) S.user = Object.assign(S.user, d.me);
   if (S.params.course !== undefined) { S.schedCourse = S.params.course; delete S.params.course; }

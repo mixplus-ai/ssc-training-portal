@@ -727,6 +727,17 @@ async function run(action, payload, opt) {
   catch (e) { toast(e.message, true); throw e; }
   finally { if (!opt.silent) loading(false); }
 }
+// ข้อมูลหน้าแรก: รวมคำขอที่ซ้ำกันภายใน 5 วิ และจำไว้ในเครื่องเพื่อเปิดหน้าครั้งต่อไปได้ทันที
+let HOME_P = null, HOME_T = 0;
+function fetchHome(force) {
+  if (!force && HOME_P && Date.now() - HOME_T < 5000) return HOME_P;
+  HOME_T = Date.now();
+  HOME_P = call('publicHome', {}).then(d => {
+    LS.set('tp_home', JSON.stringify(d)); S.banners = d.banners || {}; S.settings = Object.assign(S.settings, d.settings); return d;
+  }).catch(e => { HOME_P = null; throw e; });
+  return HOME_P;
+}
+function cachedHome() { try { return JSON.parse(LS.get('tp_home') || 'null'); } catch (e) { return null; } }
 async function refreshMe() { try { const d = await call('me', {}); S.user = d.user; S.settings = Object.assign(S.settings, d.settings); } catch (e) { } }
 
 // ---------- UI helpers ----------
@@ -941,7 +952,7 @@ const calViewLabel = key => { const st = S.cal[key]; return st.sel ? 'วัน�
 const BANNER_PLACES = [['home', 'สไลด์หน้าแรก', '1920 × 700 px'], ['schedule', 'หน้าตารางอบรม', '1920 × 400 px'], ['my', 'หน้าการอบรมของฉัน', '1920 × 400 px'], ['rewards', 'หน้าแลกของรางวัล', '1920 × 400 px']];
 const bannerSize = pl => (BANNER_PLACES.find(x => x[0] === pl) || BANNER_PLACES[1])[2];
 async function getBanners(force) {
-  if (!S.banners || force) { const d = await call('publicHome', {}); S.banners = d.banners || {}; S.settings = Object.assign(S.settings, d.settings); }
+  if (!S.banners || force) await fetchHome(force);
   return S.banners;
 }
 function bannerBlock(pl) {
@@ -1105,8 +1116,17 @@ function bindCommon(el, sessions) {
 
 // ====================== HOME ======================
 VIEWS.home = async el => {
+  const c = cachedHome();
+  if (c) {
+    // แสดงข้อมูลที่จำไว้ทันที แล้วโหลดข้อมูลล่าสุดเบื้องหลัง
+    drawHome(el, c);
+    fetchHome().then(d => { if (S.route === 'home' && el.isConnected && JSON.stringify(d) !== JSON.stringify(c)) drawHome(el, d); }).catch(() => { });
+    return;
+  }
   el.innerHTML = `<div class="hero"><div class="hero-slides skeleton" style="border-radius:0"></div></div>`;
-  const d = await call('publicHome', {});
+  drawHome(el, await fetchHome());
+};
+function drawHome(el, d) {
   S.settings = Object.assign(S.settings, d.settings); S.home = d; S.banners = d.banners || {};
   const admin = S.user && S.user.role === 'admin';
   const homeB = (d.banners && d.banners.home) || [];
@@ -1144,7 +1164,7 @@ VIEWS.home = async el => {
     </div></div>
   </div>`;
   $('#vf').onsubmit = e => { e.preventDefault(); go('verify', { no: e.target.no.value.trim() }); };
-  const more = $('#more'); if (more) more.onclick = () => { S.homeMore = !S.homeMore; VIEWS.home(el); };
+  const more = $('#more'); if (more) more.onclick = () => { S.homeMore = !S.homeMore; drawHome(el, S.home); };
   clearInterval(S.heroT);
   if (slides.length > 1) {
     let i = 0; const all = $$('.hero-slide', el), dots = $$('.hero-dots i', el);
@@ -1157,7 +1177,7 @@ VIEWS.home = async el => {
     box.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) { show(i + (dx < 0 ? 1 : -1)); start(); } x0 = null; });
     start();
   }
-};
+}
 
 // ====================== AUTH ======================
 VIEWS.login = el => {
@@ -1216,7 +1236,7 @@ function onAuthed(d, msg) {
 // ====================== SCHEDULE (calendar left · details right) ======================
 VIEWS.schedule = async el => {
   el.innerHTML = `<div class="wrap page"><div class="skeleton" style="height:360px"></div></div>`;
-  const d = S.user ? await call('listSessions', {}) : await call('publicHome', {});
+  const d = S.user ? await call('listSessions', {}) : await fetchHome();
   S.banners = d.banners || S.banners || {};
   if (d.me) S.user = Object.assign(S.user, d.me);
   if (S.params.course !== undefined) { S.schedCourse = S.params.course; delete S.params.course; }
@@ -2557,10 +2577,14 @@ ADMIN.settings = el => {
 async function boot() {
   const B = window.BOOT || {};
   const val = k => B[k] && String(B[k]).indexOf('<?') !== 0 ? String(B[k]) : '';
+  const c = cachedHome();
+  if (c) { S.settings = Object.assign({}, c.settings); S.banners = c.banners || {}; }
+  // โหลดข้อมูลหน้าแรกพร้อมกับข้อมูลผู้ใช้ ไม่ต้องรอทีละอย่าง
+  const homeP = fetchHome().catch(() => null);
   try {
-    if (S.token) { const d = await call('me', {}); S.user = d.user; S.settings = d.settings; }
+    if (S.token) { const d = await call('me', {}); S.user = d.user; S.settings = Object.assign(S.settings, d.settings); }
   } catch (e) { S.token = null; LS.set('tp_token', null); }
-  if (!S.settings.ORG_SHORT) { try { const d = await call('publicHome', {}); S.settings = d.settings; S.banners = d.banners; } catch (e) { } }
+  if (!S.settings.ORG_SHORT) await homeP;
   if (val('verify')) return go('verify', { no: val('verify') });
   if (val('checkin')) return go('checkin', { code: val('checkin') });
   if (val('course')) return S.user ? go('book', { courseId: val('course') }) : go('schedule', { course: val('course') });

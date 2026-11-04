@@ -131,6 +131,17 @@ async function run(action, payload, opt) {
   catch (e) { toast(e.message, true); throw e; }
   finally { if (!opt.silent) loading(false); }
 }
+// ข้อมูลหน้าแรก: รวมคำขอที่ซ้ำกันภายใน 5 วิ และจำไว้ในเครื่องเพื่อเปิดหน้าครั้งต่อไปได้ทันที
+let HOME_P = null, HOME_T = 0;
+function fetchHome(force) {
+  if (!force && HOME_P && Date.now() - HOME_T < 5000) return HOME_P;
+  HOME_T = Date.now();
+  HOME_P = call('publicHome', {}).then(d => {
+    LS.set('tp_home', JSON.stringify(d)); S.banners = d.banners || {}; S.settings = Object.assign(S.settings, d.settings); return d;
+  }).catch(e => { HOME_P = null; throw e; });
+  return HOME_P;
+}
+function cachedHome() { try { return JSON.parse(LS.get('tp_home') || 'null'); } catch (e) { return null; } }
 async function refreshMe() { try { const d = await call('me', {}); S.user = d.user; S.settings = Object.assign(S.settings, d.settings); } catch (e) { } }
 
 // ---------- UI helpers ----------
@@ -345,7 +356,7 @@ const calViewLabel = key => { const st = S.cal[key]; return st.sel ? 'วัน�
 const BANNER_PLACES = [['home', 'สไลด์หน้าแรก', '1920 × 700 px'], ['schedule', 'หน้าตารางอบรม', '1920 × 400 px'], ['my', 'หน้าการอบรมของฉัน', '1920 × 400 px'], ['rewards', 'หน้าแลกของรางวัล', '1920 × 400 px']];
 const bannerSize = pl => (BANNER_PLACES.find(x => x[0] === pl) || BANNER_PLACES[1])[2];
 async function getBanners(force) {
-  if (!S.banners || force) { const d = await call('publicHome', {}); S.banners = d.banners || {}; S.settings = Object.assign(S.settings, d.settings); }
+  if (!S.banners || force) await fetchHome(force);
   return S.banners;
 }
 function bannerBlock(pl) {
@@ -509,8 +520,17 @@ function bindCommon(el, sessions) {
 
 // ====================== HOME ======================
 VIEWS.home = async el => {
+  const c = cachedHome();
+  if (c) {
+    // แสดงข้อมูลที่จำไว้ทันที แล้วโหลดข้อมูลล่าสุดเบื้องหลัง
+    drawHome(el, c);
+    fetchHome().then(d => { if (S.route === 'home' && el.isConnected && JSON.stringify(d) !== JSON.stringify(c)) drawHome(el, d); }).catch(() => { });
+    return;
+  }
   el.innerHTML = `<div class="hero"><div class="hero-slides skeleton" style="border-radius:0"></div></div>`;
-  const d = await call('publicHome', {});
+  drawHome(el, await fetchHome());
+};
+function drawHome(el, d) {
   S.settings = Object.assign(S.settings, d.settings); S.home = d; S.banners = d.banners || {};
   const admin = S.user && S.user.role === 'admin';
   const homeB = (d.banners && d.banners.home) || [];
@@ -548,7 +568,7 @@ VIEWS.home = async el => {
     </div></div>
   </div>`;
   $('#vf').onsubmit = e => { e.preventDefault(); go('verify', { no: e.target.no.value.trim() }); };
-  const more = $('#more'); if (more) more.onclick = () => { S.homeMore = !S.homeMore; VIEWS.home(el); };
+  const more = $('#more'); if (more) more.onclick = () => { S.homeMore = !S.homeMore; drawHome(el, S.home); };
   clearInterval(S.heroT);
   if (slides.length > 1) {
     let i = 0; const all = $$('.hero-slide', el), dots = $$('.hero-dots i', el);
@@ -561,7 +581,7 @@ VIEWS.home = async el => {
     box.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) { show(i + (dx < 0 ? 1 : -1)); start(); } x0 = null; });
     start();
   }
-};
+}
 
 // ====================== AUTH ======================
 VIEWS.login = el => {

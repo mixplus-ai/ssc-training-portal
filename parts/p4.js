@@ -694,10 +694,14 @@ ADMIN.settings = el => {
 async function boot() {
   const B = window.BOOT || {};
   const val = k => B[k] && String(B[k]).indexOf('<?') !== 0 ? String(B[k]) : '';
+  const c = cachedHome();
+  if (c) { S.settings = Object.assign({}, c.settings); S.banners = c.banners || {}; }
+  // โหลดข้อมูลหน้าแรกพร้อมกับข้อมูลผู้ใช้ ไม่ต้องรอทีละอย่าง
+  const homeP = fetchHome().catch(() => null);
   try {
-    if (S.token) { const d = await call('me', {}); S.user = d.user; S.settings = d.settings; }
+    if (S.token) { const d = await call('me', {}); S.user = d.user; S.settings = Object.assign(S.settings, d.settings); }
   } catch (e) { S.token = null; LS.set('tp_token', null); }
-  if (!S.settings.ORG_SHORT) { try { const d = await call('publicHome', {}); S.settings = d.settings; S.banners = d.banners; } catch (e) { } }
+  if (!S.settings.ORG_SHORT) await homeP;
   if (val('verify')) return go('verify', { no: val('verify') });
   if (val('checkin')) return go('checkin', { code: val('checkin') });
   if (val('course')) return S.user ? go('book', { courseId: val('course') }) : go('schedule', { course: val('course') });

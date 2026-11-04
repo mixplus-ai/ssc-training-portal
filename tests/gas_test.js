@@ -109,6 +109,11 @@ const users=A('listUsers',{token:AT}); ok(users.find(x=>x.email==='c@x.com').bil
 A('saveBanner',{token:AT,banner:{placement:'schedule',title:'S',active:true}}); A('saveBanner',{token:AT,banner:{title:'H',active:true}});
 const hb=A('publicHome',{}).banners; ok(hb.schedule && hb.home && hb.home[0].title==='H','banners by placement');
 ok(A('publicHome',{}).settings.HERO_SPEED==='6' || A('publicHome',{}).settings.HERO_SPEED===6,'HERO_SPEED public');
+// public home cache: served from cache, cleared on writes
+const ph1=A('publicHome',{}); A('saveBanner',{token:AT,banner:{title:'H2',active:true}});
+ok(A('publicHome',{}).banners.home.some(b=>b.title==='H2') && ph1.banners.home.every(b=>b.title!=='H2'),'publicHome cache cleared on banner save');
+A('saveSettings',{token:AT,settings:{HERO_SPEED:'9'}}); ok(String(A('publicHome',{}).settings.HERO_SPEED)==='9','publicHome cache cleared on settings save');
+A('saveSettings',{token:AT,settings:{HERO_SPEED:'6'}});
 // daily jobs: reminder within 5 days + noshow
 const soon=mk(4); const u5=A('register',{email:'f@x.com',password:'secret1',firstName:'f',lastName:'f'}); const rsoon=A('registerSession',{saleName:'Mr Teerawat Chatpomarat (Boy)',source:'อื่นๆ: test',token:u5.token,sessionId:soon.id});
 const past=mk(-2); ctx.insert_('Registrations',{id:'RP',userId:u5.user.id,sessionId:past.id,status:'registered'});
