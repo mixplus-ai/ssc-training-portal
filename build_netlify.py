@@ -13,6 +13,8 @@ html = f'''<!DOCTYPE html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SSC Training Portal</title>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   {sty}
   <style>:root{{color-scheme:light}} body{{background:var(--ivory)}}</style>
 </head>
@@ -27,8 +29,6 @@ html = f'''<!DOCTYPE html>
       if (!window.API_URL) document.write('<script src="mock.js"><\\/script>');
     }})();
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   {app}
 </body>
 </html>

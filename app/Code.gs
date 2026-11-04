@@ -121,6 +121,8 @@ function setup() {
   getSecret_();
   var hasTrigger = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyJobs'; });
   if (!hasTrigger) ScriptApp.newTrigger('dailyJobs').timeBased().everyDays(1).atHour(8).create();
+  var hasWarm = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'warmCache'; });
+  if (!hasWarm) ScriptApp.newTrigger('warmCache').timeBased().everyMinutes(5).create();
   CacheService.getScriptCache().remove('settings'); bustPub_();
   return 'ติดตั้งเรียบร้อย';
 }
@@ -143,6 +145,11 @@ function api(action, payload) {
     return { ok: false, error: String(err && err.message || err) };
   }
 }
+/** ทริกเกอร์ทุก 5 นาที: เตรียมข้อมูลหน้าแรกไว้ในแคชล่วงหน้า และกันสคริปต์ “หลับ” ทำให้ผู้ใช้คนแรกไม่ต้องรอนาน */
+function warmCache() {
+  CacheService.getScriptCache().remove(pubKey_());
+  API.publicHome.run({});
+}
 var API = {};
 function def_(name, auth, run) { API[name] = { auth: auth, run: run }; }
 
@@ -154,7 +161,7 @@ def_('publicHome', null, function () {
     settings: publicSettings_(), courses: activeCourses_(), banners: banners_(),
     sessions: sessionsWithStats_().filter(function (s) { return s.status === 'open' && s.date >= today_(); }).map(publicSession_)
   };
-  try { var json = JSON.stringify(data); if (json.length < 95000) cache.put(key, json, 120); } catch (e) { }
+  try { var json = JSON.stringify(data); if (json.length < 95000) cache.put(key, json, 900); } catch (e) { }
   return data;
 });
 

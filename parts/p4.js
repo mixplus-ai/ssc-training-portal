@@ -88,7 +88,7 @@ ADMIN.sessions = el => {
   });
 };
 function checkinQR(s, host) {
-  const draw = () => {
+  const draw = async () => {
     const url = checkinUrl(s);
     const m = modal(`QR เช็คอิน · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div class="qr-wrap"><div id="qrc"></div>
       <div><div class="tiny muted">รหัสเช็คอิน (กรณีสแกนไม่ได้)</div><div class="code-big">${esc(s.checkinCode)}</div>
@@ -97,6 +97,7 @@ function checkinQR(s, host) {
         <div class="tiny muted" style="margin-top:10px;word-break:break-all">${esc(url)}</div></div></div>
       <p class="tiny muted" style="margin:14px 0 0">พิมพ์หรือเปิด QR นี้ที่หน้างาน ผู้อบรมสแกนด้วยกล้องมือถือ → เข้าสู่ระบบ → เช็คอินอัตโนมัติ (เปิดก่อนเวลาเริ่ม ${esc(S.settings.CHECKIN_OPEN_MINUTES || 120)} นาที)</p>`,
       `<button class="btn btn-ghost" id="nc" style="margin-right:auto">${ic('refresh')} สร้างรหัสใหม่</button><button class="btn btn-ghost" id="pp">${ic('print')} พิมพ์</button><button class="btn btn-gold" id="dq">${ic('dl')} ดาวน์โหลด PNG</button>`, { wide: false });
+    await needQr().catch(() => { });
     const c = qrCanvas(url, 560); c.className = 'qr-img'; $('#qrc', m.el).appendChild(c);
     $('#dq', m.el).onclick = () => downloadBlob(c.toDataURL('image/png'), `checkin_${s.courseCode}_${s.date}.png`);
     $('#pp', m.el).onclick = () => {
@@ -419,7 +420,7 @@ async function templateEditor(t, host) {
     if (newImage) TPL_IMG[saved.id] = img;
     m.close(); reloadTab(host);
   };
-  ctrls(); draw();
+  ctrls(); draw(); needQr().then(draw).catch(() => { });
 }
 
 // ---- Banners & hero slider ----

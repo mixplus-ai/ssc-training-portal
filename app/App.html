@@ -243,6 +243,13 @@ const payChip = st => ({
   paid: '<span class="chip ok">ชำระแล้ว</span>', rejected: '<span class="chip bad">หลักฐานไม่ผ่าน</span>'
 }[st || 'free'] || '');
 
+// ---------- ไลบรารีภายนอก โหลดเมื่อจำเป็นเท่านั้น (หน้าแรกเปิดเร็วขึ้น) ----------
+const loadJs = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = ok; s.onerror = () => no(new Error('โหลดไลบรารีไม่สำเร็จ กรุณาลองใหม่')); document.head.appendChild(s); });
+const LIBS = {};
+const needLib = (key, src) => window[key] ? Promise.resolve() : (LIBS[key] = LIBS[key] || loadJs(src).catch(e => { delete LIBS[key]; throw e; }));
+const needQr = () => needLib('qrcode', 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js');
+const needPdf = () => needLib('jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+
 // ---------- QR code ----------
 function drawQR(ctx, text, x, y, size, color) {
   if (!window.qrcode) return false;
@@ -1096,6 +1103,7 @@ function drawCert(canvas, img, cfg, data, opt) {
   });
 }
 async function renderCertCanvas(data, scale) {
+  await needQr().catch(() => { });
   const img = await templateImg(data.template.id);
   await ensureFonts(data.template.config);
   const c = document.createElement('canvas');
@@ -1103,7 +1111,7 @@ async function renderCertCanvas(data, scale) {
   return c;
 }
 async function certPdf(data) {
-  const c = await renderCertCanvas(data, 1);
+  const [c] = await Promise.all([renderCertCanvas(data, 1), needPdf()]);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
   pdf.setProperties({ title: 'Certificate ' + data.certNo, subject: data.course, author: S.settings.ORG_NAME || '' });
@@ -1375,7 +1383,7 @@ ADMIN.sessions = el => {
   });
 };
 function checkinQR(s, host) {
-  const draw = () => {
+  const draw = async () => {
     const url = checkinUrl(s);
     const m = modal(`QR เช็คอิน · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div class="qr-wrap"><div id="qrc"></div>
       <div><div class="tiny muted">รหัสเช็คอิน (กรณีสแกนไม่ได้)</div><div class="code-big">${esc(s.checkinCode)}</div>
@@ -1384,6 +1392,7 @@ function checkinQR(s, host) {
         <div class="tiny muted" style="margin-top:10px;word-break:break-all">${esc(url)}</div></div></div>
       <p class="tiny muted" style="margin:14px 0 0">พิมพ์หรือเปิด QR นี้ที่หน้างาน ผู้อบรมสแกนด้วยกล้องมือถือ → เข้าสู่ระบบ → เช็คอินอัตโนมัติ (เปิดก่อนเวลาเริ่ม ${esc(S.settings.CHECKIN_OPEN_MINUTES || 120)} นาที)</p>`,
       `<button class="btn btn-ghost" id="nc" style="margin-right:auto">${ic('refresh')} สร้างรหัสใหม่</button><button class="btn btn-ghost" id="pp">${ic('print')} พิมพ์</button><button class="btn btn-gold" id="dq">${ic('dl')} ดาวน์โหลด PNG</button>`, { wide: false });
+    await needQr().catch(() => { });
     const c = qrCanvas(url, 560); c.className = 'qr-img'; $('#qrc', m.el).appendChild(c);
     $('#dq', m.el).onclick = () => downloadBlob(c.toDataURL('image/png'), `checkin_${s.courseCode}_${s.date}.png`);
     $('#pp', m.el).onclick = () => {
@@ -1706,7 +1715,7 @@ async function templateEditor(t, host) {
     if (newImage) TPL_IMG[saved.id] = img;
     m.close(); reloadTab(host);
   };
-  ctrls(); draw();
+  ctrls(); draw(); needQr().then(draw).catch(() => { });
 }
 
 // ---- Banners & hero slider ----

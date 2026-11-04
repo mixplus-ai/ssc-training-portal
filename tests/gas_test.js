@@ -21,7 +21,7 @@ const ctx={ console, Logger:{log:console.log},
   CacheService:{getScriptCache:()=>({get:k=>cache[k]||null,put:(k,v)=>cache[k]=v,remove:k=>delete cache[k],getAll:ks=>Object.fromEntries(ks.map(k=>[k,cache[k]])),putAll:o=>Object.assign(cache,o)})},
   LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},
   Session:{getScriptTimeZone:()=>'Asia/Bangkok'},
-  ScriptApp:{getService:()=>({getUrl:()=>'https://script.google.com/x/exec'}),getProjectTriggers:()=>[],newTrigger:()=>{const t={timeBased:()=>t,everyDays:()=>t,atHour:()=>t,create:()=>console.log('TRIGGER created')};return t;}},
+  ScriptApp:{getService:()=>({getUrl:()=>'https://script.google.com/x/exec'}),getProjectTriggers:()=>[],newTrigger:()=>{const t={timeBased:()=>t,everyDays:()=>t,everyMinutes:()=>t,atHour:()=>t,create:()=>console.log('TRIGGER created')};return t;}},
   MailApp:{sendEmail:o=>console.log('MAIL ->',o.to,'|',o.subject)},
   DriveApp:{ createFolder:n=>({getId:()=>'F1',getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>({createFile:()=>({getId:()=>'FILE1',setSharing(){}})}),getFoldersByName:()=>({hasNext:()=>false})}), getFolderById:()=>{throw 1}, Access:{},Permission:{} },
   HtmlService:{}, Date, Math, JSON, String, Number, Object, Array, Error, parseInt
@@ -113,6 +113,7 @@ ok(A('publicHome',{}).settings.HERO_SPEED==='6' || A('publicHome',{}).settings.H
 const ph1=A('publicHome',{}); A('saveBanner',{token:AT,banner:{title:'H2',active:true}});
 ok(A('publicHome',{}).banners.home.some(b=>b.title==='H2') && ph1.banners.home.every(b=>b.title!=='H2'),'publicHome cache cleared on banner save');
 A('saveSettings',{token:AT,settings:{HERO_SPEED:'9'}}); ok(String(A('publicHome',{}).settings.HERO_SPEED)==='9','publicHome cache cleared on settings save');
+ctx.warmCache(); ok(String(A('publicHome',{}).settings.HERO_SPEED)==='9','warmCache rebuilds publicHome');
 A('saveSettings',{token:AT,settings:{HERO_SPEED:'6'}});
 // daily jobs: reminder within 5 days + noshow
 const soon=mk(4); const u5=A('register',{email:'f@x.com',password:'secret1',firstName:'f',lastName:'f'}); const rsoon=A('registerSession',{saleName:'Mr Teerawat Chatpomarat (Boy)',source:'อื่นๆ: test',token:u5.token,sessionId:soon.id});

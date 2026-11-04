@@ -243,6 +243,13 @@ const payChip = st => ({
   paid: '<span class="chip ok">ชำระแล้ว</span>', rejected: '<span class="chip bad">หลักฐานไม่ผ่าน</span>'
 }[st || 'free'] || '');
 
+// ---------- ไลบรารีภายนอก โหลดเมื่อจำเป็นเท่านั้น (หน้าแรกเปิดเร็วขึ้น) ----------
+const loadJs = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = ok; s.onerror = () => no(new Error('โหลดไลบรารีไม่สำเร็จ กรุณาลองใหม่')); document.head.appendChild(s); });
+const LIBS = {};
+const needLib = (key, src) => window[key] ? Promise.resolve() : (LIBS[key] = LIBS[key] || loadJs(src).catch(e => { delete LIBS[key]; throw e; }));
+const needQr = () => needLib('qrcode', 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js');
+const needPdf = () => needLib('jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+
 // ---------- QR code ----------
 function drawQR(ctx, text, x, y, size, color) {
   if (!window.qrcode) return false;

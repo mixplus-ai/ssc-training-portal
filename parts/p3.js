@@ -50,6 +50,7 @@ function drawCert(canvas, img, cfg, data, opt) {
   });
 }
 async function renderCertCanvas(data, scale) {
+  await needQr().catch(() => { });
   const img = await templateImg(data.template.id);
   await ensureFonts(data.template.config);
   const c = document.createElement('canvas');
@@ -57,7 +58,7 @@ async function renderCertCanvas(data, scale) {
   return c;
 }
 async function certPdf(data) {
-  const c = await renderCertCanvas(data, 1);
+  const [c] = await Promise.all([renderCertCanvas(data, 1), needPdf()]);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
   pdf.setProperties({ title: 'Certificate ' + data.certNo, subject: data.course, author: S.settings.ORG_NAME || '' });
