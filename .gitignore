@@ -1,0 +1,6 @@
+node_modules/
+shots/
+shots2/
+*.tgz
+.DS_Store
+.clasp.json
