@@ -12,7 +12,19 @@ import CODE from './code.mjs';
 
 const TZ = 'Asia/Bangkok';
 let SQL = null;
-const db = () => SQL || (SQL = postgres(process.env.DATABASE_URL, { prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10 }));
+// DATABASE_URL ใส่ได้หลายลิงก์คั่นด้วยช่องว่าง (เช่น pooler หลายกลุ่มของ Supabase) ระบบจะใช้ลิงก์แรกที่เชื่อมต่อได้
+let SQL_P = null;
+const open = url => postgres(url, { prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10 });
+async function pickDb() {
+  const urls = [process.env.DATABASE_URL, process.env.DATABASE_URL_2].join(' ').split(/\s+/).filter(Boolean);
+  let last;
+  for (const u of urls) {
+    const c = open(u);
+    try { await c`select 1`; return c; } catch (e) { last = e; c.end({ timeout: 1 }).catch(() => { }); console.log('db connect failed', u.replace(/:[^:@/]*@/, ':***@'), e.message); }
+  }
+  throw last || new Error('DATABASE_URL not set');
+}
+const db = async () => SQL || (SQL = await (SQL_P = SQL_P || pickDb().catch(e => { SQL_P = null; throw e; })));
 // ไฟล์ที่อัปโหลด (สลิป 50 ทวิ รูปเทมเพลต แบนเนอร์ ฯลฯ) เก็บใน Netlify Blobs เปิดผ่าน /f/<path>
 let STORE = null;
 const store = () => STORE || (STORE = getStore({ name: 'files', consistency: 'strong' }));
@@ -244,7 +256,7 @@ export async function run(action, payload, opt) {
   catch (e) { if (e instanceof Retry) return attempt(action, payload, opt, false); throw e; }
 }
 async function attempt(action, payload, opt, readOnly) {
-  const sql = db();
+  const sql = await db();
   const job = { uploads: [], mails: [], propsDirty: false };
   let result, changed = [];
   await sql.begin(async tx => {
