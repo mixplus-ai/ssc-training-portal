@@ -21,3 +21,10 @@ begin
 end $$;
 drop trigger if exists tp_sheets_history on tp_sheets;
 create trigger tp_sheets_history before update on tp_sheets for each row execute function tp_keep_history();
+revoke all on tp_sheets, tp_props, tp_meta, tp_history from anon, authenticated;
+-- ผู้ใช้ฐานข้อมูลสำหรับ Netlify Functions (ตั้งรหัสผ่านแยก ใส่ใน DATABASE_URL บน Netlify เท่านั้น):
+--   create role tp_app login password '<รหัสผ่าน>';
+--   grant usage on schema public to tp_app;
+--   grant select, insert, update, delete on tp_sheets, tp_props, tp_meta, tp_history to tp_app;
+--   grant usage on sequence tp_history_id_seq to tp_app;
+--   create policy tp_app_all on tp_sheets for all to tp_app using (true) with check (true);  (ทำแบบเดียวกันกับ tp_props tp_meta tp_history)

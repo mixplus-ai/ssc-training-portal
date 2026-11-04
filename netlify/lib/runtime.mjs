@@ -7,13 +7,20 @@ import postgres from 'postgres';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { zipSync } from 'fflate';
+import { getStore } from '@netlify/blobs';
 import CODE from './code.mjs';
 
 const TZ = 'Asia/Bangkok';
 let SQL = null;
 const db = () => SQL || (SQL = postgres(process.env.DATABASE_URL, { prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10 }));
-const SUPA_URL = () => String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-const BUCKET = () => process.env.SUPABASE_BUCKET || 'files';
+// ไฟล์ที่อัปโหลด (สลิป 50 ทวิ รูปเทมเพลต แบนเนอร์ ฯลฯ) เก็บใน Netlify Blobs เปิดผ่าน /f/<path>
+let STORE = null;
+const store = () => STORE || (STORE = getStore({ name: 'files', consistency: 'strong' }));
+const SITE = () => String(process.env.SITE_ORIGIN || process.env.URL || '').replace(/\/+$/, '');
+export async function readFile(path) {
+  const r = await store().getWithMetadata(path, { type: 'arrayBuffer' });
+  return r ? { buf: Buffer.from(r.data), type: (r.metadata && r.metadata.type) || 'application/octet-stream' } : null;
+}
 
 // ---------- Utilities.formatDate (รองรับโซนเวลาจริง) ----------
 function formatDate(d, tz, fmt) {
@@ -81,7 +88,7 @@ const cacheSvc = {
   removeAll: ks => ks.forEach(k => CACHE.delete(k))
 };
 
-// ---------- Blob / Drive แทนด้วย Supabase Storage ----------
+// ---------- Blob / Drive แทนด้วย Netlify Blobs ----------
 function mkBlob(bytes, mime, name) {
   let b = Buffer.from(bytes || []), m = mime || 'application/octet-stream', n = name || 'file';
   const blob = {
@@ -91,7 +98,8 @@ function mkBlob(bytes, mime, name) {
   };
   return blob;
 }
-const publicUrl = path => `${SUPA_URL()}/storage/v1/object/public/${BUCKET()}/${path.split('/').map(encodeURIComponent).join('/')}`;
+const publicUrl = path => `${SITE()}/f/${path.split('/').map(encodeURIComponent).join('/')}`;
+const ownPath = url => { const m = String(url).match(/\/f\/(.+?)(?:\?.*)?$/); return m && String(url).startsWith(SITE() + '/f/') ? m[1].split('/').map(decodeURIComponent).join('/') : null; };
 function mkDrive(job) {
   const folder = prefix => ({
     getId: () => prefix || 'root',
@@ -143,7 +151,7 @@ function mkContext(book, props, job) {
   };
   vm.createContext(ctx);
   SCRIPT.runInContext(ctx);
-  // ลิงก์ไฟล์ใหม่ชี้ไปที่ Supabase Storage (มี / ในชื่อ) ไฟล์เก่าที่อยู่ใน Google Drive ยังใช้ลิงก์เดิม
+  // ลิงก์ไฟล์ใหม่ชี้ไปที่ /f/ ของเว็บ (มี / ในชื่อ) ไฟล์เก่าที่อยู่ใน Google Drive ยังใช้ลิงก์เดิม
   ctx.imgUrl_ = id => (/^https?:/.test(id) ? id : String(id).includes('/') ? publicUrl(id) : 'https://lh3.googleusercontent.com/d/' + id);
   ctx.fileLink_ = f => publicUrl(f.getId());
   return ctx;
@@ -151,6 +159,8 @@ function mkContext(book, props, job) {
 
 // ---------- งานที่ต้องใช้ไฟล์ (เดิมอ่านจาก Drive แบบ sync) ----------
 async function fetchBuf(url) {
+  const own = ownPath(url);
+  if (own) { const f = await readFile(own); if (!f) throw new Error('ไม่พบไฟล์'); return f; }
   const r = await fetch(url, { redirect: 'follow' });
   if (!r.ok) throw new Error('fetch ' + r.status);
   return { buf: Buffer.from(await r.arrayBuffer()), type: (r.headers.get('content-type') || '').split(';')[0] };
@@ -184,7 +194,7 @@ const PRELOAD = {
       const who = String(b.billingName || u.company || ctx.fullName_(u) || r.id).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60);
       for (const k of kinds) {
         const url = String(r[k[0]] || ''); if (!url) continue;
-        const dl = url.includes('/storage/v1/object/') ? url : (ctx.driveId_(url) ? 'https://drive.google.com/uc?export=download&id=' + ctx.driveId_(url) : url);
+        const dl = ownPath(url) ? url : (ctx.driveId_(url) ? 'https://drive.google.com/uc?export=download&id=' + ctx.driveId_(url) : url);
         try {
           const f = await fetchBuf(dl);
           const ext = (url.match(/\.[a-z0-9]{2,5}(?=$|\?)/i) || [ctx.mimeExt_(f.type)])[0] || '';
@@ -203,13 +213,9 @@ const PRELOAD = {
 const READ_ONLY = new Set(['publicHome', 'verifyCert', 'me', 'listSessions', 'myTrainings', 'getCertificate', 'templateImage', 'rewardsPage',
   'adminData', 'sessionRoster', 'listUsers', 'exportRegistrations', 'listQuotes', 'listRedemptions', 'paymentDocsZip', 'emailDefaults']);
 
-// ---------- ส่งไฟล์ขึ้น Storage และส่งอีเมล ----------
+// ---------- เก็บไฟล์ และส่งอีเมล ----------
 async function upload(u) {
-  const r = await fetch(`${SUPA_URL()}/storage/v1/object/${BUCKET()}/${u.path.split('/').map(encodeURIComponent).join('/')}`, {
-    method: 'POST', body: u.buf,
-    headers: { Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_KEY, apikey: process.env.SUPABASE_SERVICE_KEY, 'Content-Type': u.mime || 'application/octet-stream', 'x-upsert': 'true', 'cache-control': '31536000' }
-  });
-  if (!r.ok) throw new Error('อัปโหลดไฟล์ไม่สำเร็จ (' + r.status + ')');
+  await store().set(u.path, u.buf, { metadata: { type: u.mime || 'application/octet-stream' } });
 }
 // ส่งอีเมลผ่าน Apps Script เดิม (บัญชี Google เดิม โควตาเดิม) ด้วยรหัสลับร่วม MAIL_RELAY_KEY
 export async function sendMails(mails) {
@@ -282,4 +288,4 @@ async function attempt(action, payload, opt, readOnly) {
   });
   return { result, mails: job.mails, homeChanged: changed.some(n => PUB_TABLES.includes(n)) };
 }
-export const _test = { formatDate, mkBook, mkContext, cacheSvc, reset: () => { MEM = { ver: -1, sheets: null }; CACHE.clear(); }, end: () => SQL && SQL.end() };
+export const _test = { setStore: x => { STORE = x; }, formatDate, mkBook, mkContext, cacheSvc, reset: () => { MEM = { ver: -1, sheets: null }; CACHE.clear(); }, end: () => SQL && SQL.end() };

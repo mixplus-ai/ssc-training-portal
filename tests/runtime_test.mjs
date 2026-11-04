@@ -4,8 +4,7 @@
 import crypto from 'node:crypto';
 import postgres from 'postgres';
 
-process.env.SUPABASE_URL = 'https://demo.supabase.co';
-process.env.SUPABASE_SERVICE_KEY = 'svc';
+process.env.URL = 'https://cerssc.netlify.app';
 process.env.MAIL_RELAY_URL = 'https://script.google.com/macros/s/TEST/exec';
 process.env.MAIL_RELAY_KEY = 'k'.repeat(32);
 
@@ -13,15 +12,19 @@ const uploads = [], relays = [];
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 globalThis.fetch = async (url, o = {}) => {
   url = String(url);
-  if (url.includes('/storage/v1/object/') && o.method === 'POST') { uploads.push({ url, size: o.body.length, type: o.headers['Content-Type'] }); return new Response('{}'); }
-  if (url.includes('/storage/v1/object/public/') || url.includes('netlify.app')) return new Response(PNG, { headers: { 'content-type': 'image/png' } });
+  if (url.includes('netlify.app')) return new Response(PNG, { headers: { 'content-type': 'image/png' } });
   if (url.startsWith(process.env.MAIL_RELAY_URL)) { relays.push(JSON.parse(o.body)); return new Response(JSON.stringify({ ok: true, data: { sent: 1 } })); }
   throw new Error('unexpected fetch ' + url);
 };
 
 const sql = postgres(process.env.DATABASE_URL, { prepare: false });
-await sql`truncate tp_sheets, tp_props, tp_meta, tp_history`;
+await sql`delete from tp_sheets`; await sql`delete from tp_props`; await sql`delete from tp_meta`; await sql`delete from tp_history`;
 const { run, sendMails, _test } = await import('../netlify/lib/runtime.mjs');
+const blobs = new Map();
+_test.setStore({
+  set: async (k, buf, o) => { uploads.push({ k, size: buf.length, type: o.metadata.type }); blobs.set(k, { data: buf, metadata: o.metadata }); },
+  getWithMetadata: async k => blobs.get(k) || null
+});
 
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
@@ -89,10 +92,10 @@ const paid = await mk(25, { courseId: C[2].id, price: 3500, fees: [{ name: 'doc'
 const pr = await A('registerSession', { token: u.token, sessionId: paid.id, saleName: 'x', source: 'y', billing: { billingType: 'company', billingName: 'ACME', taxId: '0105' }, wht: true });
 ok(pr.total === 4160, 'fees/VAT/WHT total ' + pr.total);
 const up = await A('uploadPayment', { token: u.token, regId: pr.id, slip: { name: 's.png', mimeType: 'image/png', data: 'data:image/png;base64,' + PNG.toString('base64') } });
-ok(up.payStatus === 'review' && uploads.length === 1 && uploads[0].type === 'image/png', 'slip uploaded to storage');
+ok(up.payStatus === 'review' && uploads.length === 1 && uploads[0].type === 'image/png', 'slip stored in Netlify Blobs');
 const reg = await A('sessionRoster', { token: AT, sessionId: paid.id });
-const slip = JSON.stringify(reg).match(/https:\/\/demo\.supabase\.co\/storage\/v1\/object\/public\/files\/[^"]+/);
-ok(!!slip, 'slip link points to Supabase Storage');
+const slip = JSON.stringify(reg).match(/https:\/\/cerssc\.netlify\.app\/f\/[^"]+/);
+ok(!!slip, 'slip link points to /f/ on the site: ' + (slip && slip[0]));
 
 // รวมเอกสารเป็น zip
 const z = await A('paymentDocsZip', { token: AT, sessionId: paid.id });
