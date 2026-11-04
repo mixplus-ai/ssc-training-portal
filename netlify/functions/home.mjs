@@ -3,7 +3,7 @@
 // ระบบเดิม: ดึงจาก Apps Script เก็บไว้ 5 นาที และส่งของเดิมให้ทันทีระหว่างดึงข้อมูลใหม่เบื้องหลัง
 // ไฟล์ home.mjs สร้างจากไฟล์นี้โดย build_netlify.py (ใส่ลิงก์จาก netlify-site/config.js)
 import { run } from '../lib/runtime.mjs';
-const API_URL = process.env.API_URL || 'https://script.google.com/macros/s/AKfycbzR1uqROfLBTuAhkjKluBJoxTI7c_W89yLXDwD8Cm4fGsM3OeU6Is33pajEYhTB1Qr1/exec';
+const API_URL = process.env.API_URL || '/api';
 
 async function fromGas() {
   if (!API_URL || !/^https:/.test(API_URL)) throw new Error('no API_URL');
