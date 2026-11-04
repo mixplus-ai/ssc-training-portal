@@ -66,7 +66,7 @@ ok((await A('me', { token: AT + 'x' }, true)).result.code === 'AUTH', 'tampered 
 
 // รอบอบรม + หน้าแรก
 const C = (await A('adminData', { token: AT })).courses;
-const mk = (n, o) => A('saveSession', { token: AT, session: Object.assign({ courseId: C[0].id, date: day(n), startTime: '09:00', endTime: '16:00', hours: 6, capacity: 30, location: 'BKK' }, o || {}) });
+const mk = (n, o) => A('saveSession', { token: AT, session: Object.assign({ courseId: C[0].id, date: day(n), startTime: '09:00', endTime: '16:00', hours: 6, capacity: 30, location: 'BKK', speakerName: 'Spk', speakerEmail: 'spk@x.com' }, o || {}) });
 const s1 = await mk(10);
 const h = await run('publicHome', {});
 ok(h.result.ok && h.result.data.sessions.some(s => s.id === s1.id), 'publicHome shows new session');

@@ -59,11 +59,11 @@ ADMIN.sessions = el => {
     <div class="card"><div class="toolbar"><div class="filters">${[['upcoming', 'กำลังจะมาถึง'], ['past', 'ผ่านมาแล้ว'], ['all', 'ทั้งหมด'], ['archived', `ที่ลบแล้ว${nArch ? ' (' + nArch + ')' : ''}`]].map(x => `<a class="filter ${f === x[0] ? 'active' : ''}" data-sf="${x[0]}">${x[1]}</a>`).join('')}</div>
       <select class="input" id="cf" style="margin-left:auto">${courseOpts(cf, true)}</select></div>
     <div class="table-wrap"><table class="tbl tbl-sess"><thead><tr><th>วันที่</th><th>หลักสูตร</th><th>ชม./แต้ม</th><th>ค่าอบรม</th><th>ผู้สมัคร</th><th>เช็คอิน</th><th>ใบประกาศ</th><th>สถานะ</th><th></th></tr></thead><tbody>
-    ${list.map(s => `<tr><td><b>${thDate(s.date)}</b><div class="tiny muted">${esc(s.startTime)}–${esc(s.endTime)} ${s.title ? '· ' + esc(s.title) : ''}</div><div class="tiny muted">${esc(s.location || '')}</div></td>
+    ${list.map(s => `<tr><td><b>${thDate(s.date)}</b><div class="tiny muted">${esc(s.startTime)}–${esc(s.endTime)} ${s.title ? '· ' + esc(s.title) : ''}</div><div class="tiny muted">${esc(s.location || '')}</div>${s.speakerName ? `<div class="tiny">${icS('user', 12)} ${esc(s.speakerName)}${s.speakerNotifiedAt ? ` <span class="muted" title="แจ้งวิทยากรแล้ว">· แจ้งแล้ว</span>` : ''}</div>` : `<div class="tiny" style="color:var(--bad)">ยังไม่ระบุวิทยากร</div>`}</td>
       <td><span class="chip" style="background:${esc(s.courseColor)}1a;color:${esc(s.courseColor)}">${esc(s.courseCode)}</span></td>
       <td>${esc(s.hours || '-')}</td><td class="small">${Number(s.feeTotal) ? money(s.feeTotal) + (isTrue(s.vat) ? ' +VAT' : '') : '<span class="muted">ฟรี</span>'}${s.payReview ? `<div><span class="chip warn">สลิป ${s.payReview}</span></div>` : ''}</td>
       <td>${s.registered}${Number(s.capacity) ? ' / ' + s.capacity : ''}</td><td>${s.checkedIn || 0}</td><td>${s.certs}</td><td>${sessionChip(s.status)}</td>
-      <td class="acts"><div><button class="icon-btn" data-qr="${s.id}" title="QR เช็คอิน">${ic('qr')}</button> <button class="btn btn-primary btn-sm" data-roster="${s.id}">${ic('users')} <span class="hide-sm">ผู้เข้าอบรม</span></button> ${Number(s.feeTotal) ? `<button class="icon-btn" data-pdoc="${s.id}" title="การชำระเงิน / สลิป / 50 ทวิ">${ic('receipt')}</button> ` : ''}<button class="icon-btn" data-edit="${s.id}" title="แก้ไข">${ic('edit')}</button> <button class="icon-btn" data-dup="${s.id}" title="ทำซ้ำรอบนี้">${ic('copy')}</button> ${isTrue(s.archived) ? `<button class="icon-btn" data-restore="${s.id}" title="กู้คืนกลับเข้ารายการ">${ic('undo')}</button>` : `<button class="icon-btn" data-del="${s.id}" title="ลบออกจากรายการ">${ic('trash')}</button>`}</div></td></tr>`).join('')
+      <td class="acts"><div><button class="icon-btn" data-qr="${s.id}" title="QR เช็คอิน">${ic('qr')}</button> <button class="btn btn-primary btn-sm" data-roster="${s.id}">${ic('users')} <span class="hide-sm">ผู้เข้าอบรม</span></button> ${Number(s.feeTotal) ? `<button class="icon-btn" data-pdoc="${s.id}" title="การชำระเงิน / สลิป / 50 ทวิ">${ic('receipt')}</button> ` : ''}${Number(s.feeTotal) ? `<button class="icon-btn" data-coupon="${s.id}" title="คูปองส่วนลด">${ic('tag')}</button> ` : ''}<button class="icon-btn" data-evalsum="${s.id}" title="ผลประเมินวิทยากร">${ic('star')}</button> <button class="icon-btn" data-edit="${s.id}" title="แก้ไข">${ic('edit')}</button> <button class="icon-btn" data-dup="${s.id}" title="ทำซ้ำรอบนี้">${ic('copy')}</button> ${isTrue(s.archived) ? `<button class="icon-btn" data-restore="${s.id}" title="กู้คืนกลับเข้ารายการ">${ic('undo')}</button>` : `<button class="icon-btn" data-del="${s.id}" title="ลบออกจากรายการ">${ic('trash')}</button>`}</div></td></tr>`).join('')
       || `<tr><td colspan="9"><div class="empty">ไม่มีรอบอบรม</div></td></tr>`}
     </tbody></table></div></div>`;
   $('#ns').onclick = () => sessionForm(null, el);
@@ -73,6 +73,8 @@ ADMIN.sessions = el => {
   $$('[data-qr]', el).forEach(b => b.onclick = () => checkinQR(a.sessions.find(s => s.id === b.dataset.qr), el));
   $$('[data-edit]', el).forEach(b => b.onclick = () => sessionForm(a.sessions.find(s => s.id === b.dataset.edit), el));
   $$('[data-pdoc]', el).forEach(b => b.onclick = () => { go('admin', { tab: 'payments', ps: b.dataset.pdoc }); });
+  $$('[data-coupon]', el).forEach(b => b.onclick = () => couponsModal(a.sessions.find(s => s.id === b.dataset.coupon)));
+  $$('[data-evalsum]', el).forEach(b => b.onclick = () => evalSummary(a.sessions.find(s => s.id === b.dataset.evalsum)));
   $$('[data-dup]', el).forEach(b => b.onclick = () => duplicateSession(a.sessions.find(s => s.id === b.dataset.dup), el));
   $$('[data-del]', el).forEach(b => b.onclick = async () => {
     const s = a.sessions.find(x => x.id === b.dataset.del), upcoming = (s.endDate || s.date) >= today;
@@ -112,9 +114,51 @@ function checkinQR(s, host) {
   };
   draw();
 }
+// ---- คูปองส่วนลดเฉพาะรอบ ----
+async function couponsModal(s) {
+  const m = modal(`คูปองส่วนลด · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div id="cpb"><div class="skeleton" style="height:120px"></div></div>`, '', { wide: true });
+  const draw = async () => {
+    const all = (await run('listCoupons', {})).filter(c => c.sessionId === s.id);
+    $('#cpb', m.el).innerHTML = `<div class="small muted" style="margin-bottom:12px">${esc(s.courseTitle)} · ค่าอบรม ${money(s.feeTotal)} บาท · ผู้สมัครกรอกโค้ดในขั้นตอนยืนยันการลงทะเบียน ส่วนลดหักจากยอดก่อนภาษี</div>
+      <form id="cpf" class="card card-b" style="margin-bottom:14px"><div class="row" style="align-items:flex-end">
+        <div class="field" style="margin:0"><label>โค้ด *</label><input class="input" name="code" placeholder="เช่น EARLY500" style="text-transform:uppercase" required></div>
+        <div class="field" style="margin:0;max-width:150px"><label>ประเภท</label><select class="input" name="kind"><option value="amount">ลดเป็นบาท</option><option value="percent">ลดเป็น %</option></select></div>
+        <div class="field" style="margin:0;max-width:120px"><label>มูลค่า *</label><input class="input" type="number" min="0" step="0.01" name="value" required></div>
+        <div class="field" style="margin:0;max-width:140px"><label>ใช้ได้กี่สิทธิ์</label><input class="input" type="number" min="0" name="maxUses" placeholder="0 = ไม่จำกัด"></div>
+        <div class="field" style="margin:0"><label>หมายเหตุ</label><input class="input" name="note" placeholder="เช่น ลูกค้า VIP"></div>
+        <button class="btn btn-gold" id="cpadd">${ic('plus')} สร้างคูปอง</button></div></form>
+      <div class="table-wrap"><table class="tbl"><thead><tr><th>โค้ด</th><th>ส่วนลด</th><th>ใช้แล้ว</th><th>สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead><tbody>
+      ${all.map(c => `<tr><td><b class="cert-no">${esc(c.code)}</b></td><td>${c.kind === 'percent' ? esc(c.value) + '%' : money(c.value) + ' บาท'}</td><td>${c.used}${Number(c.maxUses) ? ' / ' + c.maxUses : ''}</td>
+        <td>${isTrue(c.active) ? '<span class="chip ok">ใช้งาน</span>' : '<span class="chip">ปิด</span>'}</td><td class="small">${esc(c.note || '')}</td>
+        <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-cpt="${c.id}">${isTrue(c.active) ? 'ปิด' : 'เปิด'}</button> <button class="icon-btn" data-cpd="${c.id}" title="ลบ">${ic('trash')}</button></td></tr>`).join('') || `<tr><td colspan="6"><div class="empty">ยังไม่มีคูปองสำหรับรอบนี้</div></td></tr>`}
+      </tbody></table></div>`;
+    $('#cpf', m.el).onsubmit = async e => {
+      e.preventDefault(); const v = formData(e.target);
+      await run('saveCoupon', { coupon: { code: v.code, kind: v.kind, value: Number(v.value), maxUses: Number(v.maxUses || 0), note: v.note, sessionId: s.id, active: true } }, { ok: 'สร้างคูปองแล้ว' }); draw();
+    };
+    $$('[data-cpt]', m.el).forEach(b => b.onclick = async () => { const c = all.find(x => x.id === b.dataset.cpt); await run('saveCoupon', { coupon: Object.assign({}, c, { active: !isTrue(c.active) }) }); draw(); });
+    $$('[data-cpd]', m.el).forEach(b => b.onclick = async () => { if (!await confirmBox('ลบคูปองนี้? ผู้ที่ใช้ไปแล้วยังได้ส่วนลดตามเดิม', 'ลบ', true)) return; await run('deleteCoupon', { id: b.dataset.cpd }); draw(); });
+  };
+  draw();
+}
+// ---- ผลประเมินวิทยากร ----
+async function evalSummary(s) {
+  const d = await run('evaluationSummary', { sessionId: s.id });
+  const bar = v => `<div class="bar" style="width:120px;display:inline-block;vertical-align:middle"><i style="width:${Math.round(v / 4 * 100)}%"></i></div>`;
+  const m = modal(`ผลประเมินวิทยากร · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div class="small muted" style="margin-bottom:12px">${esc(s.courseTitle)}${s.speakerName ? ` · วิทยากร <b style="color:var(--ink)">${esc(s.speakerName)}</b>` : ''} · ผู้ตอบ <b style="color:var(--ink)">${d.count}</b> คน${d.count ? ` · คะแนนเฉลี่ยรวม <b style="color:var(--ink)">${d.overall.toFixed(2)}</b> / 4` : ''}</div>
+    ${d.count ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>หัวข้อ</th><th>เฉลี่ย</th>${d.scale.map((x, i) => `<th class="tiny">${i + 1} ${esc(x)}</th>`).join('')}</tr></thead><tbody>
+      ${d.questions.map((q, i) => `<tr><td class="small">${i + 1}. ${esc(q.question)}</td><td style="white-space:nowrap"><b>${q.avg.toFixed(2)}</b> ${bar(q.avg)}</td>${q.dist.map(n => `<td>${n}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      ${d.comments.length ? `<div class="list-label" style="margin-top:16px">ข้อเสนอแนะ (${d.comments.length})</div>${d.comments.map(c => `<div class="card card-b small" style="margin-bottom:8px">“${esc(c.comment)}”<div class="tiny muted">${esc(c.name)} · ${thDT(c.createdAt)}</div></div>`).join('')}` : ''}`
+      : `<div class="empty">${ic('star')}<div>ยังไม่มีผู้ทำแบบประเมิน</div><div class="small">ผู้อบรมทำแบบประเมินได้หลังเช็คอิน ที่เมนู “การอบรมของฉัน”</div></div>`}`,
+    `${d.count ? `<button class="btn btn-ghost" id="evcsv">${ic('csv')} Export CSV</button>` : ''}<button class="btn btn-primary" data-x>ปิด</button>`, { wide: true });
+  $('#evcsv', m.el) && ($('#evcsv', m.el).onclick = () => {
+    const rows = [['ชื่อ', 'อีเมล', 'บริษัท'].concat(d.questions.map((q, i) => 'ข้อ ' + (i + 1))).concat(['ข้อเสนอแนะ', 'เวลา'])].concat(d.rows.map(r => [r.name, r.email, r.company].concat(r.q).concat([r.comment, r.createdAt])));
+    downloadBlob('data:text/csv;charset=utf-8,﻿' + encodeURIComponent(rows.map(r => r.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(',')).join('\n')), `evaluation_${s.courseCode}_${s.date}.csv`);
+  });
+}
 function feeRowsHtml(fees) { return fees.map((f, i) => `<div class="fee-row"><input class="input" data-fn="${i}" placeholder="รายการ เช่น ค่าเอกสาร / ค่าอาหาร" value="${esc(f.name || '')}"><input class="input" type="number" min="0" data-fa="${i}" placeholder="บาท" value="${esc(f.amount || '')}"><button type="button" class="icon-btn" data-fd="${i}">${ic('x')}</button></div>`).join(''); }
 function duplicateSession(src, host) {
-  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note'];
+  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note', 'speakerName', 'speakerEmail'];
   const s = { status: 'open' }; keep.forEach(k => { if (src[k] !== undefined) s[k] = src[k]; });
   sessionForm(s, host, { title: `ทำซ้ำรอบอบรม · ${esc(src.courseCode || '')} ${thDate(src.date)}`, hint: 'คัดลอกรายละเอียด เวลา ชั่วโมง ค่าอบรม และเทมเพลตจากรอบเดิมแล้ว กรุณาเลือกวันที่ใหม่ ระบบจะสร้างรหัสเช็คอินใหม่ให้ และไม่คัดลอกรายชื่อผู้ลงทะเบียน' });
 }
@@ -129,6 +173,11 @@ function sessionForm(s, host, opt) {
     <div class="row"><div class="field"><label>เวลาเริ่ม</label><input class="input" type="time" name="startTime" value="${esc(s.startTime || '')}"></div><div class="field"><label>เวลาสิ้นสุด</label><input class="input" type="time" name="endTime" value="${esc(s.endTime || '')}"></div>
       <div class="field"><label>ชั่วโมงอบรม *</label><input class="input" type="number" min="0.5" step="0.5" name="hours" value="${esc(s.hours || '')}" required><span class="hint">ระบบให้ ${esc(S.settings.POINTS_PER_HOUR || 1)} แต้ม/ชม. อัตโนมัติ</span></div>
       <div class="field"><label>จำนวนที่นั่ง</label><input class="input" type="number" min="0" name="capacity" value="${esc(s.capacity || '')}"><span class="hint">0 = ไม่จำกัด</span></div></div>
+    <fieldset class="fs" style="margin-bottom:14px"><legend>วิทยากร</legend><div class="row">
+      <div class="field"><label>ชื่อวิทยากร *</label><input class="input" name="speakerName" value="${esc(s.speakerName || '')}" required></div>
+      <div class="field"><label>อีเมลวิทยากร *</label><input class="input" type="email" name="speakerEmail" value="${esc(s.speakerEmail || '')}" required></div></div>
+      <div class="hint small muted">ระบบส่งอีเมลแจ้งวิทยากร (รายละเอียดรอบ + รายชื่อผู้ลงทะเบียน) ${esc(S.settings.SPEAKER_REMIND_DAYS || 3)} วันก่อนวันอบรมอัตโนมัติ${s.speakerNotifiedAt ? ` · แจ้งแล้วเมื่อ ${thDT(s.speakerNotifiedAt)}` : ''}</div>
+      ${s.id ? `<button type="button" class="btn btn-ghost btn-sm" id="nsp" style="margin-top:8px">${ic('mail')} ส่งอีเมลแจ้งวิทยากรตอนนี้</button>` : ''}</fieldset>
     <div class="field"><label>สถานที่</label><input class="input" name="location" value="${esc(s.location || '')}"></div>
     <div class="field"><label>ลิงก์แผนที่ (Google Maps)</label><input class="input" name="mapUrl" value="${esc(s.mapUrl || '')}"></div>
     <fieldset class="fs"><legend>ค่าอบรม และค่าใช้จ่ายอื่น</legend>
@@ -154,6 +203,10 @@ function sessionForm(s, host, opt) {
   $('#af', m.el).onclick = () => { fees.push({ name: '', amount: 0 }); drawFees(); };
   $('[name=price]', m.el).oninput = total;
   drawFees();
+  $('#nsp', m.el) && ($('#nsp', m.el).onclick = async () => {
+    if (!await confirmBox(`ส่งอีเมลแจ้งกำหนดการถึงวิทยากร ${esc(s.speakerEmail || '')}?<br><span class="small muted">ถ้าแก้ชื่อ/อีเมลวิทยากร กรุณากดบันทึกก่อน</span>`, 'ส่งอีเมล')) return;
+    await run('notifySpeaker', { sessionId: s.id }, { ok: 'ส่งอีเมลถึงวิทยากรแล้ว' });
+  });
   if (opt.hint) setTimeout(() => { const d = $('[name=date]', m.el); if (d) d.focus(); }, 50);
   $('#ok', m.el).onclick = async () => {
     const f = $('#sf', m.el); if (!f.reportValidity()) return;

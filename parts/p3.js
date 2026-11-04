@@ -83,10 +83,11 @@ async function openCert(regId) {
 }
 VIEWS.certs = async el => {
   el.innerHTML = `<div class="wrap page"><div class="skeleton" style="height:320px"></div></div>`;
-  const all = (await call('myTrainings', {})).list.filter(t => t.hasCert);
+  const all0 = (await call('myTrainings', {})).list, all = all0.filter(t => t.hasCert && !t.certLocked), waitEval = all0.filter(t => t.needEval);
   const valid = all.filter(t => !t.certExpired), expired = all.filter(t => t.certExpired);
   el.innerHTML = `<div class="wrap page">
     <div class="page-head"><div><div class="eyebrow">Certificates</div><h1>ใบประกาศนียบัตรของฉัน</h1><div class="muted">ใบประกาศมีอายุ ${esc(S.settings.CERT_VALID_MONTHS || 12)} เดือนนับจากวันอบรม · ดาวน์โหลดเป็น PDF (A4) หรือ PNG · สแกน QR บนใบประกาศเพื่อตรวจสอบ</div></div></div>
+    ${waitEval.length ? `<div class="rules warn" style="margin-bottom:18px">${ic('star')}<div><b>มี ${waitEval.length} หลักสูตรที่รอทำแบบประเมินวิทยากร</b><div class="small">ทำแบบประเมิน (เช็คเอาท์) ที่เมนู “การอบรมของฉัน” เพื่อรับใบประกาศ</div></div><button class="btn btn-gold btn-sm" data-go="my" style="margin-left:auto">ไปทำแบบประเมิน</button></div>` : ''}
     ${valid.length ? `<div class="grid g3">${valid.map(t => `<div class="card cert-card"><div class="cert-thumb" data-thumb="${t.reg.id}"><div class="ph">กำลังสร้างตัวอย่าง…</div></div>
       <div class="cert-meta"><span class="cert-no">${esc(t.reg.certNo)}</span><h3 style="font-size:16px;margin-top:6px">${esc(t.course.title)}</h3><div class="small muted">อบรมวันที่ ${thDateRange(t.session.date, t.session.endDate)}</div>
         <div class="small">ใช้ได้ถึง <b>${thDate(t.certExpires, true)}</b></div></div>

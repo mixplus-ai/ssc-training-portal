@@ -46,6 +46,8 @@ const P = {
   key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   csv: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M9 13l6 5M15 13l-6 5"/>',
+  tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
   qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
@@ -475,9 +477,9 @@ function toggleMenu(anchor) {
 // ---------- Shared renderers ----------
 function courseCard(c, opt) {
   opt = opt || {};
-  return `<div class="card course ${opt.selectable ? 'selectable' : ''} ${opt.selected ? 'selected' : ''}" style="--c:${esc(c.color || '#0f2242')}" ${opt.selectable ? `data-pick-course="${c.id}"` : ''}>
+  return `<div class="card course ${Number(c.price) ? 'paid' : ''} ${opt.selectable ? 'selectable' : ''} ${opt.selected ? 'selected' : ''}" style="--c:${esc(c.color || '#0f2242')}" ${opt.selectable ? `data-pick-course="${c.id}"` : ''}>
     <div class="tick">${ic('check')}</div>
-    <div class="course-top">${c.coverUrl ? `<img src="${esc(c.coverUrl)}" alt="">` : ''}<div class="course-code">${esc(c.code || '')}</div><div class="course-hours">${esc(c.hours || '-')} ชั่วโมง${Number(c.price) ? ' · ' + money(c.price) + ' บาท' : ''}</div></div>
+    <div class="course-top">${c.coverUrl ? `<img src="${esc(c.coverUrl)}" alt="">` : ''}<div class="course-code">${esc(c.code || '')}</div><div class="course-hours">${esc(c.hours || '-')} ชั่วโมง${Number(c.price) ? '' : ' · ฟรี'}</div>${Number(c.price) ? `<div class="course-price">${icS('tag', 13)} ${money(c.price)} บาท</div>` : ''}</div>
     <div class="course-body"><h3>${esc(c.title)}</h3><p>${esc(c.subtitle || '')}</p>${opt.desc !== false ? `<p class="small muted">${esc(c.description || '')}</p>` : ''}
       <div class="course-foot">${opt.foot || ''}</div></div></div>`;
 }
@@ -491,10 +493,12 @@ function seatsHtml(s) {
   return `<div class="small"><b>${s.seatsLeft}</b> <span class="muted">/ ${s.capacity} ที่นั่งว่าง</span></div><div class="bar"><i style="width:${pct}%"></i></div>`;
 }
 const feeText = s => Number(s.feeTotal) ? `${money(s.feeTotal)} บาท${isTrue(s.vat) ? ' + VAT' : ''}` : 'ไม่มีค่าใช้จ่าย';
+const isPaid = s => Number(s.feeTotal) > 0;
+const priceTag = s => isPaid(s) ? `<span class="price-tag">${icS('tag', 13)} ${money(s.feeTotal)} บาท${isTrue(s.vat) ? ' + VAT' : ''}</span>` : `<span class="free-tag">ฟรี</span>`;
 function sessionRow(s, action) {
-  return `<div class="session">${dateBox(s)}
+  return `<div class="session ${isPaid(s) ? 'paid' : 'free'}">${dateBox(s)}
     <div class="session-info"><div class="tiny" style="color:${esc(s.courseColor)};font-weight:600;letter-spacing:1px">${esc(s.courseCode || '')}</div>
-      <h3>${esc(s.courseTitle || '')}</h3>
+      <h3>${esc(s.courseTitle || '')} ${priceTag(s)}</h3>
       <div class="meta"><span>${ic('cal')}${thDateRange(s.date, s.endDate)}${s.title ? ' · ' + esc(s.title) : ''}</span>
       <span>${ic('clock')}${esc(s.startTime || '-')}–${esc(s.endTime || '-')} น.</span>
       <span>${ic('pin')}${esc(s.location || '-')}</span></div></div>
@@ -509,10 +513,10 @@ function bookBtn(s) {
   return `<button class="btn btn-primary btn-sm" data-go="book" data-p='${JSON.stringify({ courseId: s.courseId, sessionId: s.id })}'>จองที่นั่ง</button>`;
 }
 function sessionDetailCard(s) {
-  return `<div class="card sdetail" style="--c:${esc(s.courseColor || '#0f2242')}">
+  return `<div class="card sdetail ${isPaid(s) ? 'paid' : 'free'}" style="--c:${esc(s.courseColor || '#0f2242')}">${isPaid(s) ? `<div class="paid-ribbon">${icS('tag', 13)} หลักสูตรพิเศษ · ${money(s.feeTotal)} บาท</div>` : ''}
     <div class="sd-top">${dateBox(s)}<div style="flex:1;min-width:0">
       <div class="tiny" style="color:${esc(s.courseColor)};font-weight:600;letter-spacing:1px">${esc(s.courseCode || '')}${s.title ? ' · ' + esc(s.title) : ''}</div>
-      <h3>${esc(s.courseTitle || '')}</h3>
+      <h3>${esc(s.courseTitle || '')} ${priceTag(s)}</h3>
       <div class="meta"><span>${ic('cal')}${thDateRange(s.date, s.endDate)}</span><span>${ic('clock')}${esc(s.startTime || '-')}–${esc(s.endTime || '-')} น.</span>
         <span>${ic('pin')}${esc(s.location || '-')}${s.mapUrl ? ` · <a href="${esc(s.mapUrl)}" target="_blank" rel="noopener">แผนที่</a>` : ''}</span></div>
       <div class="meta" style="margin-top:4px"><span>${ic('receipt')}${feeText(s)}</span><span>${ic('coin')}${esc(s.hours || '-')} ชม. · รับ ${Math.round(Number(s.hours || 0) * Number(S.settings.POINTS_PER_HOUR || 1))} แต้ม</span></div>

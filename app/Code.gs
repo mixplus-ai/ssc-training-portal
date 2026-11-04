@@ -14,10 +14,10 @@ var SCHEMA = {
     'billingType', 'billingName', 'taxId', 'branch', 'billingAddress', 'role', 'status', 'bannedUntil', 'penaltyAt', 'createdAt', 'lastLogin'],
   Courses: ['id', 'code', 'title', 'subtitle', 'description', 'hours', 'price', 'color', 'coverUrl', 'defaultTemplateId', 'sort', 'active'],
   Sessions: ['id', 'courseId', 'title', 'date', 'endDate', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'status', 'templateId',
-    'price', 'fees', 'vat', 'whtAllowed', 'checkinCode', 'note', 'createdAt', 'archived'],
+    'price', 'fees', 'vat', 'whtAllowed', 'checkinCode', 'note', 'createdAt', 'archived', 'speakerName', 'speakerEmail', 'speakerNotifiedAt'],
   Registrations: ['id', 'userId', 'sessionId', 'status', 'registeredAt', 'checkedInAt', 'attendedAt', 'certNo', 'certIssuedAt', 'pointsAwarded',
     'rescheduledFrom', 'cancelReason', 'cancelledAt', 'remindedAt',
-    'payStatus', 'subtotal', 'vatAmount', 'whtAmount', 'total', 'billing', 'slipUrl', 'whtCertUrl', 'receiptUrl', 'paidAt', 'note', 'saleName', 'source'],
+    'payStatus', 'subtotal', 'vatAmount', 'whtAmount', 'total', 'billing', 'slipUrl', 'whtCertUrl', 'receiptUrl', 'paidAt', 'note', 'saleName', 'source', 'couponCode', 'discount', 'evaluatedAt'],
   Strikes: ['id', 'userId', 'regId', 'type', 'reason', 'createdAt'],
   Templates: ['id', 'name', 'imageFileId', 'imageUrl', 'config', 'createdAt'],
   Banners: ['id', 'placement', 'month', 'title', 'subtitle', 'imageUrl', 'imageFileId', 'link', 'active', 'sort', 'createdAt'],
@@ -26,8 +26,19 @@ var SCHEMA = {
   Rewards: ['id', 'kind', 'name', 'description', 'imageUrl', 'points', 'stock', 'weight', 'active', 'sort', 'createdAt'],
   Redemptions: ['id', 'userId', 'rewardId', 'rewardName', 'points', 'kind', 'status', 'note', 'createdAt'],
   QuoteRequests: ['id', 'userId', 'sessionId', 'courseTitle', 'sessionDate', 'companyName', 'branch', 'address', 'postcode', 'taxId', 'contactName', 'phone', 'email', 'note', 'status', 'adminNote', 'createdAt'],
+  Coupons: ['id', 'code', 'sessionId', 'kind', 'value', 'maxUses', 'active', 'note', 'createdAt'],
+  Evaluations: ['id', 'regId', 'userId', 'sessionId', 'speakerName', 'q1', 'q2', 'q3', 'q4', 'q5', 'comment', 'createdAt'],
   Settings: ['key', 'value', 'description']
 };
+/** แบบประเมินความพึงพอใจต่อวิทยากร (เช็คเอาท์) ระดับคะแนน 4 ระดับ */
+var EVAL_QUESTIONS = [
+  'วิทยากรมีความรู้และความเชี่ยวชาญในหัวข้อที่อบรม',
+  'วิทยากรอธิบายเนื้อหาได้ชัดเจน เข้าใจง่าย',
+  'วิทยากรถ่ายทอดความรู้ได้อย่างน่าสนใจและเป็นลำดับ',
+  'วิทยากรสามารถตอบคำถามและให้คำแนะนำได้อย่างชัดเจน',
+  'วิทยากรบริหารเวลาและเนื้อหาการอบรมได้อย่างเหมาะสม'
+];
+var EVAL_SCALE = ['ควรปรับปรุง', 'พอใช้', 'ดี', 'ดีมาก'];
 
 var DEFAULT_SETTINGS = [
   ['ORG_NAME', 'Siam Solar Cell Training Center', 'ชื่อหน่วยงาน (แสดงบนเว็บ)'],
@@ -54,7 +65,9 @@ var DEFAULT_SETTINGS = [
   ['SITE_URL', '', 'ลิงก์หน้าเว็บ ถ้าโฮสต์ภายนอก เช่น https://ssc-training.netlify.app (ว่าง = ใช้ลิงก์ Apps Script)'],
   ['SEND_EMAIL', 'TRUE', 'TRUE = ส่งอีเมลยืนยัน/เตือน/ใบเซอร์พร้อม'],
   ["WHT_PAYEE_INFO", "บริษัท สยามโซล่าร์เซลล์ จำกัด (สำนักงานใหญ่)\nเลขประจำตัวผู้เสียภาษี 0000000000000\nที่อยู่ 000 ถนน........ แขวง........ เขต........ กรุงเทพมหานคร 10000", "ชื่อ ที่อยู่ เลขผู้เสียภาษีของบริษัท สำหรับให้ลูกค้าออกหนังสือรับรองหัก ณ ที่จ่าย (50 ทวิ)"],
-  ["PERSON_NO_VAT", "TRUE", "TRUE = บุคคลทั่วไปเลือก “ไม่รับใบกำกับภาษี (ไม่คิด VAT)” ได้"],
+  ["PERSON_NO_VAT", "TRUE", "TRUE = บุคคลธรรมดาไม่คิดภาษีมูลค่าเพิ่ม (VAT) และไม่หัก ณ ที่จ่าย"],
+  ['EVAL_REQUIRED', 'TRUE', 'TRUE = ต้องทำแบบประเมินวิทยากร (เช็คเอาท์) ก่อนรับใบประกาศ'],
+  ['SPEAKER_REMIND_DAYS', '3', 'ส่งอีเมลแจ้งวิทยากรก่อนวันอบรมกี่วัน'],
   ["QUOTE_EMAIL", "", "อีเมลรับแจ้งคำขอใบเสนอราคา (ว่าง = ส่งถึงผู้ดูแลระบบทุกคน)"],
   ['EMAIL_REG_SUBJECT', "ยืนยันการลงทะเบียนอบรม: {หลักสูตร}", 'หัวข้ออีเมลยืนยันการลงทะเบียน'],
   ['EMAIL_REG_BODY', "เรียน {ชื่อ}\n\nท่านได้ลงทะเบียนอบรมหลักสูตร **{หลักสูตร}** เรียบร้อยแล้ว\n\nวันที่: **{วันที่}**\nเวลา: {เวลา}\nสถานที่: {สถานที่}\nแผนที่การเดินทาง: {แผนที่}\n\n{ข้อมูลการชำระเงิน}\n\nเลขที่การลงทะเบียน: {เลขที่ลงทะเบียน}\nไฟล์แนบ .ics สามารถเพิ่มลงปฏิทินของท่านได้ (แจ้งเตือนล่วงหน้า 1 วัน)\nดูรายละเอียดและเอกสารประกอบได้ที่เมนู “การอบรมของฉัน”: {ลิงก์เว็บ}\n\nขอแสดงความนับถือ\n{หน่วยงาน}\n{ติดต่อ}", 'เนื้อหาอีเมลยืนยันการลงทะเบียน'],
@@ -261,10 +274,12 @@ def_('registerSession', 'user', function (p, user) {
     if (!saleName) throw new Error('กรุณาระบุชื่อ Sale ที่เชิญท่านเข้าร่วมกิจกรรม');
     if (!source) throw new Error('กรุณาระบุช่องทางที่ท่านรู้จักกิจกรรมนี้');
     ensureColumn_('Registrations', 'saleName'); ensureColumn_('Registrations', 'source');
-    var money = calcFees_(s, p.billing, p.wht);
+    var coupon = p.couponCode ? findCoupon_(p.couponCode, s.id) : null;
+    var money = calcFees_(s, p.billing, p.wht, coupon);
     var r = { id: uid_('R'), userId: user.id, sessionId: s.id, status: 'registered', registeredAt: now_(),
       payStatus: money.total > 0 ? 'unpaid' : 'free', subtotal: money.subtotal, vatAmount: money.vat, whtAmount: money.wht, total: money.total,
-      billing: money.total > 0 ? JSON.stringify(p.billing || {}) : '', saleName: saleName, source: source };
+      billing: money.gross > 0 ? JSON.stringify(p.billing || {}) : '', saleName: saleName, source: source,
+      couponCode: coupon ? coupon.code : '', discount: money.discount || '' };
     if (p.slip) { r.slipUrl = fileLink_(saveFile_(p.slip, 'payments', 'slip_' + r.id)); r.payStatus = 'review'; }
     insert_('Registrations', r);
     if (p.saveBilling && p.billing) update_('Users', user.id, pick_(p.billing, ['billingType', 'billingName', 'taxId', 'branch', 'billingAddress']));
@@ -371,7 +386,7 @@ def_('myTrainings', 'user', function (p, user) {
   var sessions = indexBy_(readTable_('Sessions'), 'id');
   var courses = indexBy_(readTable_('Courses'), 'id');
   var mats = readTable_('Materials');
-  var nowD = new Date();
+  var nowD = new Date(), evalReq = isTrue_(getSetting_('EVAL_REQUIRED') || defaultSetting_('EVAL_REQUIRED'));
   var list = regs.map(function (r) {
     var s = normSession_(sessions[r.sessionId] || {});
     var c = courses[s.courseId] || {};
@@ -391,15 +406,18 @@ def_('myTrainings', 'user', function (p, user) {
     var exp = r.certNo ? certExpiry_(s) : '';
     var rv = { reg: publicReg_(r), session: publicSession_(s), course: c, materials: m, hasCert: !!r.certNo, certExpires: exp, certExpired: exp ? exp < today_() : false };
     rv.canChange = r.status === 'registered' && changeAllowed_(s);
+    rv.needEval = evalReq && !r.evaluatedAt && (r.status === 'attended' || !!r.checkedInAt);
+    rv.certLocked = rv.hasCert && rv.needEval;
     return rv;
   }).sort(function (a, b) { return a.session.date < b.session.date ? 1 : -1; });
-  return { list: list, rules: bookingRules_(user), payInfo: getSetting_('PAY_INFO') };
+  return { list: list, rules: bookingRules_(user), payInfo: getSetting_('PAY_INFO'), evalQuestions: EVAL_QUESTIONS, evalScale: EVAL_SCALE };
 });
 
 def_('getCertificate', 'user', function (p, user) {
   var r = findBy_('Registrations', 'id', p.regId);
   if (!r || (r.userId !== user.id && user.role !== 'admin')) throw new Error('ไม่พบใบประกาศ');
   if (!r.certNo) throw new Error('ยังไม่ได้ออกใบประกาศ');
+  if (user.role !== 'admin' && !r.evaluatedAt && isTrue_(getSetting_('EVAL_REQUIRED') || defaultSetting_('EVAL_REQUIRED'))) throw new Error('กรุณาทำแบบประเมินวิทยากร (เช็คเอาท์) ก่อนรับใบประกาศ');
   var owner = r.userId === user.id ? user : findBy_('Users', 'id', r.userId);
   var s = normSession_(findBy_('Sessions', 'id', r.sessionId));
   var exp = certExpiry_(s);
@@ -498,6 +516,10 @@ def_('saveSession', 'admin', function (p) {
   var s = pick_(p.session, SCHEMA.Sessions);
   if (!s.courseId || !s.date) throw new Error('กรุณาเลือกหลักสูตรและวันที่');
   if (!Number(s.hours)) throw new Error('กรุณาระบุจำนวนชั่วโมงอบรม (ใช้คำนวณแต้ม)');
+  s.speakerName = String(s.speakerName || '').trim(); s.speakerEmail = String(s.speakerEmail || '').trim().toLowerCase();
+  if (!s.speakerName) throw new Error('กรุณาระบุชื่อวิทยากร');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.speakerEmail)) throw new Error('กรุณาระบุอีเมลวิทยากรให้ถูกต้อง');
+  if (s.id) { var old = findBy_('Sessions', 'id', s.id); if (old && (old.speakerEmail !== s.speakerEmail || dateStr_(old.date) !== s.date)) s.speakerNotifiedAt = ''; }
   var c = findBy_('Courses', 'id', s.courseId);
   if (!s.templateId) s.templateId = c && c.defaultTemplateId || '';
   if (typeof s.fees === 'object') s.fees = JSON.stringify(s.fees);
@@ -558,7 +580,7 @@ def_('addToSession', 'admin', function (p) {
   var u = findBy_('Users', 'email', String(p.email || '').trim().toLowerCase());
   if (!u) throw new Error('ไม่พบผู้ใช้ที่ใช้อีเมลนี้ (ให้ผู้อบรมสมัครสมาชิกก่อน)');
   if (readTable_('Registrations').some(function (r) { return r.userId === u.id && r.sessionId === p.sessionId && r.status !== 'cancelled'; })) throw new Error('ผู้ใช้นี้อยู่ในรอบนี้แล้ว');
-  var s = sessionWithStats_(p.sessionId), money = calcFees_(s, {}, false);
+  var s = sessionWithStats_(p.sessionId), money = calcFees_(s, { billingType: u.billingType || (u.company ? 'company' : 'person') }, false);
   var r = { id: uid_('R'), userId: u.id, sessionId: p.sessionId, status: 'registered', registeredAt: now_(), note: 'เพิ่มโดยผู้ดูแล',
     payStatus: money.total > 0 ? 'unpaid' : 'free', subtotal: money.subtotal, vatAmount: money.vat, whtAmount: 0, total: money.total };
   insert_('Registrations', r);
@@ -651,7 +673,7 @@ def_('exportRegistrations', 'admin', function (p) {
       course: c.code + ' ' + c.title, session: (s.title || '') + ' ' + s.date, name: fullName_(u), email: u.email, phone: u.phone, company: u.company, position: u.position,
       status: r.status, checkedInAt: r.checkedInAt, certNo: r.certNo, payStatus: r.payStatus, total: r.total, wht: r.whtAmount,
       billingName: b.billingName || u.billingName, taxId: b.taxId || u.taxId, billingAddress: b.billingAddress || u.billingAddress, registeredAt: r.registeredAt, cancelReason: r.cancelReason,
-      saleName: r.saleName, source: r.source
+      saleName: r.saleName, source: r.source, couponCode: r.couponCode || '', discount: r.discount || '', evaluatedAt: r.evaluatedAt || ''
     };
   });
 });
@@ -807,6 +829,11 @@ function addStrike_(user, regId, type, reason) {
 
 // ====== งานรายวัน (ตั้งเวลาอัตโนมัติจาก setup) ======
 function dailyJobs() {
+  var spDays = Number(getSetting_('SPEAKER_REMIND_DAYS') || 3), spT = new Date(); spT.setDate(spT.getDate() + spDays);
+  var spStr = Utilities.formatDate(spT, tz_(), 'yyyy-MM-dd');
+  readTable_('Sessions').map(normSession_).forEach(function (s) {
+    if (s.speakerEmail && !s.speakerNotifiedAt && !isTrue_(s.archived) && (s.status === 'open' || s.status === 'closed') && s.date <= spStr && s.date >= today_()) notifySpeaker_(s);
+  });
   var remindDays = Number(getSetting_('REMIND_DAYS') || 5);
   var target = new Date(); target.setDate(target.getDate() + remindDays);
   var targetStr = Utilities.formatDate(target, tz_(), 'yyyy-MM-dd');
@@ -854,14 +881,129 @@ function afterAttend_(regIds) {
 function revokePoints_(r) { addPoints_(r.userId, -Number(r.pointsAwarded), 'adjust', r.id, 'ยกเลิกแต้มอบรม'); update_('Registrations', r.id, { pointsAwarded: '' }); }
 
 // ====== ค่าอบรม ======
-function calcFees_(s, billing, wht) {
+/** ค่าอบรม: ส่วนลดคูปองหักจากยอดก่อนภาษี · บุคคลธรรมดาไม่คิด VAT (PERSON_NO_VAT) · หัก ณ ที่จ่ายเฉพาะนิติบุคคล */
+function calcFees_(s, billing, wht, coupon) {
   var fees = parseJson_(s.fees); if (!Array.isArray(fees)) fees = [];
-  var subtotal = Number(s.price || 0) + fees.reduce(function (a, f) { return a + Number(f.amount || 0); }, 0);
-  var noVat = billing && billing.billingType !== 'company' && billing.noVat && isTrue_(getSetting_('PERSON_NO_VAT') || defaultSetting_('PERSON_NO_VAT'));
+  var gross = Number(s.price || 0) + fees.reduce(function (a, f) { return a + Number(f.amount || 0); }, 0);
+  var discount = coupon ? couponDiscount_(coupon, gross) : 0;
+  var subtotal = round2_(gross - discount);
+  var isCo = !!(billing && billing.billingType === 'company');
+  var noVat = !isCo && isTrue_(getSetting_('PERSON_NO_VAT') || defaultSetting_('PERSON_NO_VAT'));
   var vat = isTrue_(s.vat) && !noVat ? round2_(subtotal * Number(getSetting_('VAT_RATE') || 7) / 100) : 0;
-  var w = (wht && isTrue_(s.whtAllowed) && billing && billing.billingType === 'company') ? round2_(subtotal * Number(getSetting_('WHT_RATE') || 3) / 100) : 0;
-  return { subtotal: subtotal, vat: vat, wht: w, total: round2_(subtotal + vat - w) };
+  var w = (wht && isTrue_(s.whtAllowed) && isCo) ? round2_(subtotal * Number(getSetting_('WHT_RATE') || 3) / 100) : 0;
+  return { gross: gross, discount: discount, subtotal: subtotal, vat: vat, wht: w, total: round2_(subtotal + vat - w) };
 }
+// ====== คูปองส่วนลด (แอดมินสร้างเฉพาะรอบ) ======
+function couponDiscount_(cp, gross) {
+  var v = Number(cp.value || 0);
+  var d = cp.kind === 'percent' ? gross * Math.min(Math.max(v, 0), 100) / 100 : Math.max(v, 0);
+  return round2_(Math.min(d, gross));
+}
+function findCoupon_(code, sessionId, exceptRegId) {
+  code = String(code || '').trim().toUpperCase();
+  if (!code) return null;
+  var cp = readTable_('Coupons').filter(function (c) { return String(c.code).toUpperCase() === code && (!c.sessionId || c.sessionId === sessionId); })[0];
+  if (!cp || !isTrue_(cp.active)) throw new Error('โค้ดส่วนลดไม่ถูกต้อง หรือไม่สามารถใช้กับรอบนี้ได้');
+  var used = readTable_('Registrations').filter(function (r) { return r.status !== 'cancelled' && String(r.couponCode).toUpperCase() === code && r.id !== exceptRegId; }).length;
+  if (Number(cp.maxUses) > 0 && used >= Number(cp.maxUses)) throw new Error('โค้ดส่วนลดนี้ถูกใช้ครบจำนวนแล้ว');
+  cp.code = code; cp.used = used;
+  return cp;
+}
+def_('checkCoupon', 'user', function (p) {
+  var s = sessionWithStats_(p.sessionId);
+  if (!s || !s.id) throw new Error('ไม่พบรอบอบรม');
+  var cp = findCoupon_(p.code, s.id);
+  return { code: cp.code, kind: cp.kind === 'percent' ? 'percent' : 'amount', value: Number(cp.value || 0) };
+});
+def_('listCoupons', 'admin', function () {
+  var regs = readTable_('Registrations');
+  return readTable_('Coupons').map(function (c) {
+    c.used = regs.filter(function (r) { return r.status !== 'cancelled' && String(r.couponCode).toUpperCase() === String(c.code).toUpperCase(); }).length;
+    return c;
+  }).sort(function (a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
+});
+def_('saveCoupon', 'admin', function (p) {
+  var c = pick_(p.coupon || {}, SCHEMA.Coupons);
+  c.code = String(c.code || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!/^[A-Z0-9_-]{3,30}$/.test(c.code)) throw new Error('โค้ดต้องเป็นตัวอักษรอังกฤษหรือตัวเลข 3–30 ตัว');
+  if (!c.sessionId) throw new Error('กรุณาเลือกรอบอบรมที่ใช้คูปอง');
+  c.kind = c.kind === 'percent' ? 'percent' : 'amount';
+  c.value = Number(c.value || 0);
+  if (!(c.value > 0) || (c.kind === 'percent' && c.value > 100)) throw new Error('กรุณาระบุมูลค่าส่วนลดให้ถูกต้อง');
+  c.maxUses = Number(c.maxUses || 0);
+  c.active = c.active === undefined ? true : isTrue_(c.active);
+  ensureSheet_('Coupons');
+  return withLock_(function () {
+    var dup = readTable_('Coupons').filter(function (x) { return String(x.code).toUpperCase() === c.code && x.id !== c.id; })[0];
+    if (dup) throw new Error('มีโค้ด ' + c.code + ' อยู่แล้ว');
+    if (c.id) update_('Coupons', c.id, c); else { c.id = uid_('V'); c.createdAt = now_(); insert_('Coupons', c); }
+    return c;
+  });
+});
+def_('deleteCoupon', 'admin', function (p) { remove_('Coupons', p.id); return true; });
+
+// ====== แบบประเมินวิทยากร (เช็คเอาท์) ======
+def_('submitEvaluation', 'user', function (p, user) {
+  var regId = withLock_(function () {
+    var r = findBy_('Registrations', 'id', p.regId);
+    if (!r || r.userId !== user.id) throw new Error('ไม่พบการลงทะเบียน');
+    if (r.status !== 'attended' && !r.checkedInAt) throw new Error('ทำแบบประเมินได้หลังเช็คอินเข้าอบรมแล้ว');
+    if (r.evaluatedAt) throw new Error('ท่านทำแบบประเมินรอบนี้แล้ว');
+    var s = normSession_(findBy_('Sessions', 'id', r.sessionId));
+    var a = p.answers || [], e = { id: uid_('E'), regId: r.id, userId: user.id, sessionId: r.sessionId, speakerName: s.speakerName || '', comment: String(p.comment || '').trim().slice(0, 1000), createdAt: now_() };
+    for (var i = 0; i < EVAL_QUESTIONS.length; i++) {
+      var v = Number(a[i]);
+      if (!(v >= 1 && v <= 4)) throw new Error('กรุณาให้คะแนนข้อ ' + (i + 1));
+      e['q' + (i + 1)] = v;
+    }
+    ensureSheet_('Evaluations');
+    insert_('Evaluations', e);
+    update_('Registrations', r.id, { evaluatedAt: now_() });
+    return r.id;
+  });
+  // เช็คอินแล้ว + ประเมินแล้ว → ออกใบประกาศให้ทันที
+  var r2 = findBy_('Registrations', 'id', regId);
+  if (r2 && !r2.certNo && r2.status !== 'absent' && r2.status !== 'cancelled') issueCerts_([regId]);
+  r2 = findBy_('Registrations', 'id', regId);
+  return { evaluatedAt: r2.evaluatedAt, certNo: r2.certNo || '' };
+});
+def_('evaluationSummary', 'admin', function (p) {
+  var list = readTable_('Evaluations').filter(function (e) { return e.sessionId === p.sessionId; });
+  var users = indexBy_(readTable_('Users'), 'id');
+  var avg = EVAL_QUESTIONS.map(function (q, i) {
+    var k = 'q' + (i + 1), n = list.length;
+    return { question: q, avg: n ? round2_(list.reduce(function (a, e) { return a + Number(e[k] || 0); }, 0) / n) : 0,
+      dist: [1, 2, 3, 4].map(function (v) { return list.filter(function (e) { return Number(e[k]) === v; }).length; }) };
+  });
+  var all = avg.length && list.length ? round2_(avg.reduce(function (a, x) { return a + x.avg; }, 0) / avg.length) : 0;
+  return { count: list.length, overall: all, questions: avg, scale: EVAL_SCALE,
+    comments: list.filter(function (e) { return e.comment; }).map(function (e) { return { name: fullName_(users[e.userId] || {}), comment: e.comment, createdAt: e.createdAt }; }),
+    rows: list.map(function (e) { var u = users[e.userId] || {}; return { name: fullName_(u), email: u.email || '', company: u.company || '', q: [e.q1, e.q2, e.q3, e.q4, e.q5], comment: e.comment || '', createdAt: e.createdAt }; }) };
+});
+
+// ====== แจ้งวิทยากรก่อนวันอบรม ======
+function notifySpeaker_(s, force) {
+  if (!s.speakerEmail) return false;
+  var c = findBy_('Courses', 'id', s.courseId) || {};
+  var users = indexBy_(readTable_('Users'), 'id');
+  var regs = readTable_('Registrations').filter(function (r) { return r.sessionId === s.id && r.status !== 'cancelled'; });
+  var rows = regs.map(function (r, i) { var u = users[r.userId] || {}; return '<tr><td style="padding:4px 8px;border:1px solid #ddd">' + (i + 1) + '</td><td style="padding:4px 8px;border:1px solid #ddd">' + esc_(fullName_(u)) + '</td><td style="padding:4px 8px;border:1px solid #ddd">' + esc_(u.company || '-') + '</td></tr>'; }).join('');
+  notify_(s.speakerEmail, 'แจ้งกำหนดการบรรยาย: ' + (c.title || '') + ' ' + thaiDate_(s.date),
+    'เรียน ' + esc_(s.speakerName || 'วิทยากร') + '<br><br>ขอแจ้งกำหนดการบรรยายหลักสูตร <b>' + esc_(c.title || '') + '</b>' + (s.title ? ' (' + esc_(s.title) + ')' : '') + '<br>' + sessionHtml_(s) +
+    '<br><br>จำนวนผู้ลงทะเบียน: <b>' + regs.length + ' คน</b>' + (Number(s.capacity) ? ' จาก ' + s.capacity + ' ที่นั่ง' : '') +
+    (rows ? '<br><table style="border-collapse:collapse;margin-top:8px;font-size:13px"><tr><th style="padding:4px 8px;border:1px solid #ddd">#</th><th style="padding:4px 8px;border:1px solid #ddd">ชื่อ</th><th style="padding:4px 8px;border:1px solid #ddd">บริษัท</th></tr>' + rows + '</table>' : '') +
+    '<br>หากมีข้อสงสัย กรุณาติดต่อ ' + esc_(getSetting_('CONTACT') || ''), [icsBlob_(s, c)], false, !!force);
+  update_('Sessions', s.id, { speakerNotifiedAt: now_() });
+  return true;
+}
+function esc_(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+def_('notifySpeaker', 'admin', function (p) {
+  var s = normSession_(findBy_('Sessions', 'id', p.sessionId));
+  if (!s || !s.id) throw new Error('ไม่พบรอบอบรม');
+  if (!s.speakerEmail) throw new Error('รอบนี้ยังไม่ได้ระบุอีเมลวิทยากร');
+  notifySpeaker_(s, true);
+  return true;
+});
 function round2_(n) { return Math.round(n * 100) / 100; }
 
 // ====== ใบประกาศ ======
@@ -962,12 +1104,22 @@ function sheet_(name) {
   return sh;
 }
 function headers_(name) { var sh = sheet_(name); return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]; }
+/** เพิ่มคอลัมน์ที่ยังไม่มีตาม SCHEMA (ครั้งเดียวต่อการทำงาน) — อัปเดตเวอร์ชันแล้วไม่ต้องรัน setup ใหม่ */
+var SCHEMA_OK_ = {};
+function schemaOk_(name) {
+  if (SCHEMA_OK_[name] || !SCHEMA[name]) return;
+  var sh = sheet_(name), h = headers_(name), miss = SCHEMA[name].filter(function (k) { return h.indexOf(k) < 0; });
+  if (miss.length) { sh.getRange(1, h.length + 1, 1, miss.length).setValues([miss]); delete TABLE_CACHE_[name]; }
+  SCHEMA_OK_[name] = true;
+}
 function insert_(name, obj) {
+  schemaOk_(name);
   delete TABLE_CACHE_[name]; bustPub_(name);
   var h = headers_(name);
   sheet_(name).appendRow(h.map(function (k) { return toCell_(k, obj[k]); }));
 }
 function update_(name, id, patch) {
+  schemaOk_(name);
   delete TABLE_CACHE_[name]; bustPub_(name);
   var sh = sheet_(name), h = headers_(name);
   var ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return r[0]; });
@@ -1050,7 +1202,7 @@ function sessionsWithStats_() {
   }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 function sessionWithStats_(id) { return sessionsWithStats_().filter(function (s) { return s.id === id; })[0] || null; }
-function publicSession_(s) { var o = Object.assign({}, s); delete o.checkinCode; return o; }
+function publicSession_(s) { var o = Object.assign({}, s); delete o.checkinCode; delete o.speakerEmail; delete o.speakerNotifiedAt; return o; }
 function publicReg_(r) { var o = Object.assign({}, r); o.billing = parseJson_(r.billing); return o; }
 function activeCourses_() { return readTable_('Courses').filter(function (c) { return isTrue_(c.active); }).sort(bySort_); }
 function banners_() {
@@ -1084,7 +1236,7 @@ function defaultSetting_(k) { var d = DEFAULT_SETTINGS.filter(function (s) { ret
 function publicSettings_() {
   var o = {};
   ['ORG_NAME', 'ORG_SHORT', 'LOGO_URL', 'CONTACT', 'HERO_SPEED', 'REWARDS_ENABLED', 'MAX_ACTIVE_BOOKINGS', 'CHANGE_DAYS_BEFORE', 'STRIKE_LIMIT',
-    'VAT_RATE', 'WHT_RATE', 'PAY_INFO', 'CERT_VALID_MONTHS', 'LUCKY_COST', 'POINTS_PER_HOUR', 'CHECKIN_OPEN_MINUTES', 'SALES_LIST', 'SOURCE_LIST', 'WHT_PAYEE_INFO', 'PERSON_NO_VAT'].forEach(function (k) { o[k] = getSetting_(k) || defaultSetting_(k); });
+    'VAT_RATE', 'WHT_RATE', 'PAY_INFO', 'CERT_VALID_MONTHS', 'LUCKY_COST', 'POINTS_PER_HOUR', 'CHECKIN_OPEN_MINUTES', 'SALES_LIST', 'SOURCE_LIST', 'WHT_PAYEE_INFO', 'PERSON_NO_VAT', 'EVAL_REQUIRED', 'SPEAKER_REMIND_DAYS'].forEach(function (k) { o[k] = getSetting_(k) || defaultSetting_(k); });
   o.APP_URL = siteUrl_();
   return o;
 }

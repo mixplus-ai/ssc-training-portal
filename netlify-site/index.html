@@ -579,6 +579,34 @@ footer b{color:#fff;font-family:var(--serif);font-weight:600}
 .quote-card.done{opacity:.72}
 .quote-card .row{flex-wrap:wrap}.quote-card dd{overflow-wrap:anywhere;min-width:0}
 .hidden{display:none!important}
+
+/* ---- หลักสูตร/รอบที่มีค่าใช้จ่าย: เด่นกว่าแบบฟรี ---- */
+.price-tag{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;vertical-align:2px;background:linear-gradient(90deg,var(--gold),var(--gold-2));color:#fff;box-shadow:0 2px 6px rgba(180,138,60,.35)}
+.price-tag svg{color:#fff!important}
+.free-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:500;vertical-align:2px;background:var(--line-2);color:var(--muted)}
+.session.paid{background:linear-gradient(90deg,var(--gold-soft),transparent 70%);box-shadow:inset 4px 0 0 var(--gold)}
+.sdetail.paid{border:1.5px solid var(--gold);border-left:4px solid var(--gold);box-shadow:0 8px 24px rgba(180,138,60,.18)}
+.paid-ribbon{display:flex;align-items:center;gap:6px;margin:0;padding:7px 20px;background:linear-gradient(90deg,var(--gold),var(--gold-2));color:#fff;font-size:12.5px;font-weight:600;letter-spacing:.3px}
+.paid-ribbon svg{color:#fff!important}
+.course.paid{outline:2px solid var(--gold);outline-offset:-2px;box-shadow:0 10px 26px rgba(180,138,60,.22)}
+.course-price{position:absolute;right:14px;top:14px;display:inline-flex;align-items:center;gap:4px;padding:3px 11px;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--gold-2));color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.course-price svg{color:#fff!important}
+/* ---- โค้ดส่วนลด ---- */
+.coupon-row{display:flex;gap:8px;align-items:flex-end;margin:12px 0 4px}
+.fee-tbl tr.disc td{color:var(--ok);font-weight:600}
+/* ---- แบบประเมินวิทยากร ---- */
+.eval-scale,.eval-q{display:grid;grid-template-columns:1fr repeat(4,56px);gap:6px;align-items:center}
+.eval-scale{font-size:12px;text-align:center;color:var(--muted);padding-bottom:6px;border-bottom:1px solid var(--line)}
+.eval-scale small{font-size:10.5px}
+.eval-q{padding:10px 0;border-bottom:1px dashed var(--line)}
+.eq-t{font-size:14px}
+.eq-opts{display:contents}
+.eq-opts label{display:flex;justify-content:center;cursor:pointer}
+.eq-opts input{position:absolute;opacity:0;pointer-events:none}
+.eq-opts span{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted);transition:.15s}
+.eq-opts input:checked+span{background:var(--gold);border-color:var(--gold);color:#fff;box-shadow:0 3px 10px rgba(180,138,60,.4)}
+.eq-opts label:hover span{border-color:var(--gold)}
+@media (max-width:620px){.eval-scale{display:none}.eval-q{grid-template-columns:repeat(4,1fr)}.eq-t{grid-column:1/-1}}
 </style>
 
   <style>:root{color-scheme:light} body{background:var(--ivory)}</style>
@@ -642,6 +670,8 @@ const P = {
   key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   csv: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M9 13l6 5M15 13l-6 5"/>',
+  tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
   qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
@@ -1071,9 +1101,9 @@ function toggleMenu(anchor) {
 // ---------- Shared renderers ----------
 function courseCard(c, opt) {
   opt = opt || {};
-  return `<div class="card course ${opt.selectable ? 'selectable' : ''} ${opt.selected ? 'selected' : ''}" style="--c:${esc(c.color || '#0f2242')}" ${opt.selectable ? `data-pick-course="${c.id}"` : ''}>
+  return `<div class="card course ${Number(c.price) ? 'paid' : ''} ${opt.selectable ? 'selectable' : ''} ${opt.selected ? 'selected' : ''}" style="--c:${esc(c.color || '#0f2242')}" ${opt.selectable ? `data-pick-course="${c.id}"` : ''}>
     <div class="tick">${ic('check')}</div>
-    <div class="course-top">${c.coverUrl ? `<img src="${esc(c.coverUrl)}" alt="">` : ''}<div class="course-code">${esc(c.code || '')}</div><div class="course-hours">${esc(c.hours || '-')} ชั่วโมง${Number(c.price) ? ' · ' + money(c.price) + ' บาท' : ''}</div></div>
+    <div class="course-top">${c.coverUrl ? `<img src="${esc(c.coverUrl)}" alt="">` : ''}<div class="course-code">${esc(c.code || '')}</div><div class="course-hours">${esc(c.hours || '-')} ชั่วโมง${Number(c.price) ? '' : ' · ฟรี'}</div>${Number(c.price) ? `<div class="course-price">${icS('tag', 13)} ${money(c.price)} บาท</div>` : ''}</div>
     <div class="course-body"><h3>${esc(c.title)}</h3><p>${esc(c.subtitle || '')}</p>${opt.desc !== false ? `<p class="small muted">${esc(c.description || '')}</p>` : ''}
       <div class="course-foot">${opt.foot || ''}</div></div></div>`;
 }
@@ -1087,10 +1117,12 @@ function seatsHtml(s) {
   return `<div class="small"><b>${s.seatsLeft}</b> <span class="muted">/ ${s.capacity} ที่นั่งว่าง</span></div><div class="bar"><i style="width:${pct}%"></i></div>`;
 }
 const feeText = s => Number(s.feeTotal) ? `${money(s.feeTotal)} บาท${isTrue(s.vat) ? ' + VAT' : ''}` : 'ไม่มีค่าใช้จ่าย';
+const isPaid = s => Number(s.feeTotal) > 0;
+const priceTag = s => isPaid(s) ? `<span class="price-tag">${icS('tag', 13)} ${money(s.feeTotal)} บาท${isTrue(s.vat) ? ' + VAT' : ''}</span>` : `<span class="free-tag">ฟรี</span>`;
 function sessionRow(s, action) {
-  return `<div class="session">${dateBox(s)}
+  return `<div class="session ${isPaid(s) ? 'paid' : 'free'}">${dateBox(s)}
     <div class="session-info"><div class="tiny" style="color:${esc(s.courseColor)};font-weight:600;letter-spacing:1px">${esc(s.courseCode || '')}</div>
-      <h3>${esc(s.courseTitle || '')}</h3>
+      <h3>${esc(s.courseTitle || '')} ${priceTag(s)}</h3>
       <div class="meta"><span>${ic('cal')}${thDateRange(s.date, s.endDate)}${s.title ? ' · ' + esc(s.title) : ''}</span>
       <span>${ic('clock')}${esc(s.startTime || '-')}–${esc(s.endTime || '-')} น.</span>
       <span>${ic('pin')}${esc(s.location || '-')}</span></div></div>
@@ -1105,10 +1137,10 @@ function bookBtn(s) {
   return `<button class="btn btn-primary btn-sm" data-go="book" data-p='${JSON.stringify({ courseId: s.courseId, sessionId: s.id })}'>จองที่นั่ง</button>`;
 }
 function sessionDetailCard(s) {
-  return `<div class="card sdetail" style="--c:${esc(s.courseColor || '#0f2242')}">
+  return `<div class="card sdetail ${isPaid(s) ? 'paid' : 'free'}" style="--c:${esc(s.courseColor || '#0f2242')}">${isPaid(s) ? `<div class="paid-ribbon">${icS('tag', 13)} หลักสูตรพิเศษ · ${money(s.feeTotal)} บาท</div>` : ''}
     <div class="sd-top">${dateBox(s)}<div style="flex:1;min-width:0">
       <div class="tiny" style="color:${esc(s.courseColor)};font-weight:600;letter-spacing:1px">${esc(s.courseCode || '')}${s.title ? ' · ' + esc(s.title) : ''}</div>
-      <h3>${esc(s.courseTitle || '')}</h3>
+      <h3>${esc(s.courseTitle || '')} ${priceTag(s)}</h3>
       <div class="meta"><span>${ic('cal')}${thDateRange(s.date, s.endDate)}</span><span>${ic('clock')}${esc(s.startTime || '-')}–${esc(s.endTime || '-')} น.</span>
         <span>${ic('pin')}${esc(s.location || '-')}${s.mapUrl ? ` · <a href="${esc(s.mapUrl)}" target="_blank" rel="noopener">แผนที่</a>` : ''}</span></div>
       <div class="meta" style="margin-top:4px"><span>${ic('receipt')}${feeText(s)}</span><span>${ic('coin')}${esc(s.hours || '-')} ชม. · รับ ${Math.round(Number(s.hours || 0) * Number(S.settings.POINTS_PER_HOUR || 1))} แต้ม</span></div>
@@ -1280,20 +1312,25 @@ VIEWS.schedule = async el => {
 };
 
 // ====================== PAYMENT FORM (fees · VAT · WHT · slip) ======================
-function calcFees(s, billing, wht) {
+/** ตรงกับ calcFees_ ใน Code.gs: คูปองหักก่อนภาษี · บุคคลธรรมดาไม่คิด VAT · หัก ณ ที่จ่ายเฉพาะนิติบุคคล */
+function calcFees(s, billing, wht, coupon) {
   const fees = Array.isArray(s.fees) ? s.fees : [];
-  const subtotal = Number(s.price || 0) + fees.reduce((a, f) => a + Number(f.amount || 0), 0);
   const r2 = n => Math.round(n * 100) / 100;
-  const noVat = billing && billing.billingType !== 'company' && billing.noVat && isTrue(S.settings.PERSON_NO_VAT);
+  const gross = Number(s.price || 0) + fees.reduce((a, f) => a + Number(f.amount || 0), 0);
+  const discount = coupon ? r2(Math.min(gross, coupon.kind === 'percent' ? gross * Math.min(Math.max(coupon.value, 0), 100) / 100 : Math.max(coupon.value, 0))) : 0;
+  const subtotal = r2(gross - discount), isCo = !!(billing && billing.billingType === 'company');
+  const noVat = !isCo && isTrue(S.settings.PERSON_NO_VAT);
   const vat = isTrue(s.vat) && !noVat ? r2(subtotal * Number(S.settings.VAT_RATE || 7) / 100) : 0;
-  const w = (wht && isTrue(s.whtAllowed) && billing && billing.billingType === 'company') ? r2(subtotal * Number(S.settings.WHT_RATE || 3) / 100) : 0;
-  return { subtotal, vat, wht: w, total: r2(subtotal + vat - w) };
+  const w = (wht && isTrue(s.whtAllowed) && isCo) ? r2(subtotal * Number(S.settings.WHT_RATE || 3) / 100) : 0;
+  return { gross, discount, subtotal, vat, wht: w, total: r2(subtotal + vat - w), noVat: isTrue(s.vat) && noVat, coupon };
 }
 function feeTable(s, m) {
   const fees = Array.isArray(s.fees) ? s.fees : [];
   return `<table class="fee-tbl"><tbody>
     ${Number(s.price) ? `<tr><td>ค่าอบรม</td><td>${money(s.price)}</td></tr>` : ''}
     ${fees.map(f => `<tr><td>${esc(f.name)}</td><td>${money(f.amount)}</td></tr>`).join('')}
+    ${m.discount ? `<tr class="disc"><td>ส่วนลดโค้ด <b>${esc(m.coupon.code)}</b>${m.coupon.kind === 'percent' ? ` (${esc(m.coupon.value)}%)` : ''}</td><td>−${money(m.discount)}</td></tr>` : ''}
+    ${m.noVat ? `<tr><td class="muted">บุคคลธรรมดา ไม่คิดภาษีมูลค่าเพิ่ม</td><td>0</td></tr>` : ''}
     ${m.vat ? `<tr><td>ภาษีมูลค่าเพิ่ม ${esc(S.settings.VAT_RATE || 7)}%</td><td>${money(m.vat)}</td></tr>` : ''}
     ${m.wht ? `<tr><td>หัก ณ ที่จ่าย ${esc(S.settings.WHT_RATE || 3)}%</td><td>−${money(m.wht)}</td></tr>` : ''}
     <tr class="tot"><td>ยอดชำระ</td><td>${money(m.total)} บาท</td></tr></tbody></table>`;
@@ -1304,13 +1341,15 @@ function paymentForm(s, u) {
     ${quoteLink()}
     <div class="fs-title">${ic('receipt')} ค่าใช้จ่ายการอบรม</div>
     <div id="feeT">${feeTable(s, calcFees(s, { billingType: bt }, false))}</div>
+    <div class="coupon-row"><div class="field" style="flex:1;margin:0"><label>${icS('tag', 14)} โค้ดส่วนลด / โปรโมชั่น (ถ้ามี)</label><input class="input" name="couponIn" id="couponIn" placeholder="กรอกโค้ด" autocomplete="off" style="text-transform:uppercase"></div>
+      <button type="button" class="btn btn-ghost" id="couponBtn">ใช้โค้ด</button></div><div class="small" id="couponMsg"></div>
     <fieldset class="fs"><legend>ข้อมูลออกใบเสร็จ / ใบกำกับภาษี</legend>
       <div class="opt-row"><label class="check"><input type="radio" name="billingType" value="person" ${bt !== 'company' ? 'checked' : ''}> บุคคลธรรมดา</label><label class="check"><input type="radio" name="billingType" value="company" ${bt === 'company' ? 'checked' : ''}> นิติบุคคล / บริษัท</label></div>
       <div class="field"><label>ชื่อสำหรับออกใบเสร็จ *</label><input class="input" name="billingName" value="${esc(u.billingName || (bt === 'company' ? u.company : u.fullName) || '')}"></div>
       <div class="row"><div class="field"><label>เลขประจำตัวผู้เสียภาษี</label><input class="input" name="taxId" inputmode="numeric" maxlength="13" value="${esc(u.taxId || '')}"></div>
         <div class="field co-only" style="max-width:180px"><label>สาขา</label><input class="input" name="branch" value="${esc(u.branch || '')}" placeholder="สำนักงานใหญ่"></div></div>
       <div class="field"><label>ที่อยู่</label><textarea class="input" name="billingAddress" style="min-height:64px">${esc(u.billingAddress || '')}</textarea></div>
-      ${isTrue(s.vat) && isTrue(S.settings.PERSON_NO_VAT) ? `<label class="check person-only"><input type="checkbox" name="noVat"> ไม่ต้องการใบกำกับภาษี (ไม่คิด VAT ${esc(S.settings.VAT_RATE || 7)}%)</label><div class="tiny muted person-only" style="margin:2px 0 0 25px">บุคคลทั่วไปไม่ต้องหักภาษี ณ ที่จ่าย</div>` : ''}
+      ${isTrue(s.vat) && isTrue(S.settings.PERSON_NO_VAT) ? `<div class="tiny muted person-only">${icS('alert', 12)} บุคคลธรรมดาไม่คิดภาษีมูลค่าเพิ่ม และไม่หักภาษี ณ ที่จ่าย</div>` : ''}
       ${isTrue(s.whtAllowed) ? `<label class="check co-only"><input type="checkbox" name="wht"> บริษัทหักภาษี ณ ที่จ่าย ${esc(S.settings.WHT_RATE || 3)}% (แนบหนังสือรับรอง 50 ทวิ ภายหลังได้)</label><div class="wht-payee hidden">${payeeBox()}</div>` : ''}
       <label class="check" style="margin-top:8px"><input type="checkbox" name="saveBilling" checked> จำข้อมูลนี้ไว้ใช้ครั้งถัดไป</label>
     </fieldset>
@@ -1345,22 +1384,34 @@ function quoteForm(sess) {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-quote]'); if (b) quoteForm(b._sess || S.quoteSess || null); });
 function bindPaymentForm(root, s) {
-  S.quoteSess = s;
+  S.quoteSess = s; root._coupon = null;
+  const msg = (t, bad) => { const e = $('#couponMsg', root); e.innerHTML = t; e.style.color = bad ? 'var(--bad)' : 'var(--ok)'; };
+  $('#couponBtn', root).onclick = async () => {
+    const code = $('#couponIn', root).value.trim();
+    if (!code) { root._coupon = null; msg(''); return upd(); }
+    $('#couponBtn', root).disabled = true;
+    try { root._coupon = await call('checkCoupon', { sessionId: s.id, code }); msg(`${icS('check', 13)} ใช้โค้ด ${esc(root._coupon.code)} แล้ว`); }
+    catch (e) { root._coupon = null; msg(esc(e.message), true); }
+    $('#couponBtn', root).disabled = false; upd();
+  };
+  $('#couponIn', root).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#couponBtn', root).click(); } });
+  $('#couponIn', root).addEventListener('input', () => { if (root._coupon && $('#couponIn', root).value.trim().toUpperCase() !== root._coupon.code) { root._coupon = null; msg(''); } });
   const upd = () => {
     const v = formData(root);
     $$('.co-only', root).forEach(x => x.classList.toggle('hidden', v.billingType !== 'company'));
     $$('.person-only', root).forEach(x => x.classList.toggle('hidden', v.billingType === 'company'));
     $$('.wht-payee', root).forEach(x => x.classList.toggle('hidden', !(v.billingType === 'company' && v.wht)));
-    $('#feeT', root).innerHTML = feeTable(s, calcFees(s, v, v.wht));
+    $('#feeT', root).innerHTML = feeTable(s, calcFees(s, v, v.wht, root._coupon));
   };
   root.addEventListener('input', upd); root.addEventListener('change', upd); upd();
 }
 async function collectPayment(root) {
   const v = formData(root);
   if (!v.billingName) throw new Error('กรุณากรอกชื่อสำหรับออกใบเสร็จ');
-  const billing = { billingType: v.billingType, billingName: v.billingName, taxId: v.taxId, branch: v.billingType === 'company' ? v.branch : '', billingAddress: v.billingAddress, noVat: v.billingType !== 'company' && !!v.noVat };
+  const billing = { billingType: v.billingType, billingName: v.billingName, taxId: v.taxId, branch: v.billingType === 'company' ? v.branch : '', billingAddress: v.billingAddress };
+  if (v.couponIn && (!root._coupon || root._coupon.code !== v.couponIn.trim().toUpperCase())) throw new Error('กรุณากด “ใช้โค้ด” เพื่อตรวจสอบโค้ดส่วนลดก่อน');
   const slip = await readFile(($('#slip', root) || {}).files ? $('#slip', root).files[0] : null, 1600, 0.85);
-  return { billing, wht: !!v.wht && v.billingType === 'company', saveBilling: !!v.saveBilling, slip };
+  return { billing, wht: !!v.wht && v.billingType === 'company', saveBilling: !!v.saveBilling, slip, couponCode: root._coupon ? root._coupon.code : '' };
 }
 
 // ====================== BOOK (3 steps) ======================
@@ -1500,7 +1551,7 @@ function trainingCard(t, open) {
   const files = t.materials.filter(m => m.type !== 'photo'), photos = t.materials.filter(m => m.type === 'photo');
   const openPhotos = photos.filter(p => !p.locked);
   const needPay = ['unpaid', 'rejected', 'review'].includes(r.payStatus);
-  const steps = [['ลงทะเบียน', true], ['เช็คอิน', !!r.checkedInAt || r.status === 'attended'], ['ใบประกาศ', t.hasCert]];
+  const steps = [['ลงทะเบียน', true], ['เช็คอิน', !!r.checkedInAt || r.status === 'attended'], ['ประเมิน', !!r.evaluatedAt], ['ใบประกาศ', t.hasCert && !t.certLocked]];
   return `<div class="card training" style="--c:${esc(c.color)}">
     <div class="training-head">${dateBox(s)}
       <div class="th-info"><div class="row" style="gap:6px;margin-bottom:4px">${statusChip(r.status)}${payChip(r.payStatus)}${upcoming ? '<span class="chip gold">กำลังจะมาถึง</span>' : ''}${r.rescheduledFrom ? '<span class="chip">เลื่อนรอบแล้ว</span>' : ''}</div>
@@ -1512,7 +1563,8 @@ function trainingCard(t, open) {
     <div class="training-act">
       ${today && !r.checkedInAt && r.status === 'registered' ? `<button class="btn btn-gold btn-sm" data-go="checkin">${ic('qr')} เช็คอินเข้าอบรม</button>` : ''}
       ${upcoming && (s.mapUrl || s.location) ? `<a class="icon-btn map-btn" href="${esc(s.mapUrl || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(s.location))}" target="_blank" rel="noopener" title="แผนที่การเดินทาง" aria-label="แผนที่การเดินทาง">${ic('map')}</a>` : ''}
-      ${t.hasCert && !t.certExpired ? `<button class="btn btn-gold btn-sm" data-cert="${r.id}">${ic('award')} ใบประกาศ</button>` : ''}
+      ${t.needEval ? `<button class="btn btn-gold btn-sm" data-eval="${r.id}">${ic('star')} ประเมินวิทยากร (เช็คเอาท์)${t.hasCert ? ' · รับใบประกาศ' : ''}</button>` : ''}
+      ${t.hasCert && !t.certExpired && !t.certLocked ? `<button class="btn btn-gold btn-sm" data-cert="${r.id}">${ic('award')} ใบประกาศ</button>` : ''}
       ${needPay ? `<button class="btn ${r.payStatus === 'review' ? 'btn-ghost' : 'btn-primary'} btn-sm" data-pay="${r.id}">${ic('receipt')} ${r.payStatus === 'review' ? 'ดูการชำระเงิน' : 'แนบหลักฐานชำระ ' + money(r.total) + ' บ.'}</button>` : ''}
       ${r.receiptUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(r.receiptUrl)}" target="_blank" rel="noopener">${ic('receipt')} ใบเสร็จ</a>` : ''}
       ${files.length || photos.length ? `<button class="btn btn-ghost btn-sm" data-toggle="${r.id}">${ic('folder')} เอกสาร ${files.length}${photos.length ? ` · รูป ${openPhotos.length}/${photos.length}` : ''}</button>` : ''}
@@ -1565,10 +1617,33 @@ VIEWS.my = async el => {
     $$('[data-cancel]', el).forEach(b => b.onclick = () => cancelFlow(find(b.dataset.cancel), d.rules, () => VIEWS.my(el)));
     $$('[data-resched]', el).forEach(b => b.onclick = () => rescheduleFlow(find(b.dataset.resched), d.rules, () => VIEWS.my(el)));
     $$('[data-pay]', el).forEach(b => b.onclick = () => payFlow(find(b.dataset.pay), d.payInfo, () => VIEWS.my(el)));
+    $$('[data-eval]', el).forEach(b => b.onclick = () => evalFlow(find(b.dataset.eval), d, () => VIEWS.my(el)));
   };
   calState(key, ev);
   draw();
 };
+/** แบบประเมินความพึงพอใจต่อวิทยากร (เช็คเอาท์) → ส่งแล้วได้ใบประกาศ */
+function evalFlow(t, d, done) {
+  const qs = d.evalQuestions || [], scale = d.evalScale || ['1', '2', '3', '4'], s = t.session;
+  const m = modal('แบบประเมินความพึงพอใจต่อวิทยากร', `<form id="evf">
+    <div class="small muted" style="margin:-4px 0 6px">สำหรับการอบรมแต่ละหลักสูตรของ ${esc(S.settings.ORG_NAME || '')}</div>
+    <div class="sd-mini" style="margin-bottom:12px"><b>${esc(t.course.title)}</b><div class="small muted">${thDateRange(s.date, s.endDate)}${s.speakerName ? ` · วิทยากร <b style="color:var(--ink)">${esc(s.speakerName)}</b>` : ''}</div></div>
+    <div class="small" style="margin-bottom:10px"><b>คำชี้แจง:</b> กรุณาประเมินวิทยากรตามความคิดเห็นของท่าน โดยเลือกคะแนนที่ตรงกับความพึงพอใจมากที่สุด (4 ระดับ)</div>
+    <div class="eval-scale"><span></span>${scale.map((x, i) => `<span>${i + 1}<br><small>${esc(x)}</small></span>`).join('')}</div>
+    ${qs.map((q, i) => `<div class="eval-q"><div class="eq-t">${i + 1}. ${esc(q)}</div><div class="eq-opts">${scale.map((x, j) => `<label title="${esc(x)}"><input type="radio" name="q${i}" value="${j + 1}"><span>${j + 1}</span></label>`).join('')}</div></div>`).join('')}
+    <div class="field" style="margin-top:12px"><label>ข้อเสนอแนะเพิ่มเติม</label><textarea class="input" name="comment" style="min-height:64px"></textarea></div></form>`,
+    `<button class="btn btn-ghost" data-x>ภายหลัง</button><button class="btn btn-gold" id="evok">${ic('check')} ส่งแบบประเมิน</button>`, { wide: true });
+  $('#evok', m.el).onclick = async () => {
+    const v = formData($('#evf', m.el)), answers = qs.map((q, i) => Number(v['q' + i] || 0));
+    const miss = answers.findIndex(x => !x); if (miss >= 0) return toast('กรุณาให้คะแนนข้อ ' + (miss + 1), true);
+    let r; try { r = await run('submitEvaluation', { regId: t.reg.id, answers, comment: v.comment }); } catch (e) { return; }
+    m.close();
+    const ok = modal('ขอบคุณสำหรับการประเมิน', `<div class="success" style="padding:8px 0;text-align:center"><div class="seal">${ic('check')}</div><p>${r.certNo ? `ใบประกาศนียบัตรเลขที่ <b>${esc(r.certNo)}</b> พร้อมแล้ว` : 'บันทึกแบบประเมินเรียบร้อย ใบประกาศจะพร้อมเมื่อผู้จัดยืนยันการเข้าร่วม'}</p></div>`,
+      `${r.certNo ? `<button class="btn btn-gold" id="seeC">${ic('award')} ดูใบประกาศ</button>` : ''}<button class="btn btn-ghost" data-x>ปิด</button>`);
+    if (r.certNo) $('#seeC', ok.el).onclick = () => { ok.close(); openCert(t.reg.id); };
+    done && done();
+  };
+}
 function strikeWarn(rules, what) {
   const next = rules.strikes + 1, over = next > rules.strikeLimit;
   return `<div class="warn-box ${over ? 'bad' : ''}">${ic('alert')}<div class="small">การ${what}จะนับเป็น <b>ครั้งที่ ${next}</b> (อนุญาต ${rules.strikeLimit} ครั้ง)
@@ -1741,10 +1816,11 @@ async function openCert(regId) {
 }
 VIEWS.certs = async el => {
   el.innerHTML = `<div class="wrap page"><div class="skeleton" style="height:320px"></div></div>`;
-  const all = (await call('myTrainings', {})).list.filter(t => t.hasCert);
+  const all0 = (await call('myTrainings', {})).list, all = all0.filter(t => t.hasCert && !t.certLocked), waitEval = all0.filter(t => t.needEval);
   const valid = all.filter(t => !t.certExpired), expired = all.filter(t => t.certExpired);
   el.innerHTML = `<div class="wrap page">
     <div class="page-head"><div><div class="eyebrow">Certificates</div><h1>ใบประกาศนียบัตรของฉัน</h1><div class="muted">ใบประกาศมีอายุ ${esc(S.settings.CERT_VALID_MONTHS || 12)} เดือนนับจากวันอบรม · ดาวน์โหลดเป็น PDF (A4) หรือ PNG · สแกน QR บนใบประกาศเพื่อตรวจสอบ</div></div></div>
+    ${waitEval.length ? `<div class="rules warn" style="margin-bottom:18px">${ic('star')}<div><b>มี ${waitEval.length} หลักสูตรที่รอทำแบบประเมินวิทยากร</b><div class="small">ทำแบบประเมิน (เช็คเอาท์) ที่เมนู “การอบรมของฉัน” เพื่อรับใบประกาศ</div></div><button class="btn btn-gold btn-sm" data-go="my" style="margin-left:auto">ไปทำแบบประเมิน</button></div>` : ''}
     ${valid.length ? `<div class="grid g3">${valid.map(t => `<div class="card cert-card"><div class="cert-thumb" data-thumb="${t.reg.id}"><div class="ph">กำลังสร้างตัวอย่าง…</div></div>
       <div class="cert-meta"><span class="cert-no">${esc(t.reg.certNo)}</span><h3 style="font-size:16px;margin-top:6px">${esc(t.course.title)}</h3><div class="small muted">อบรมวันที่ ${thDateRange(t.session.date, t.session.endDate)}</div>
         <div class="small">ใช้ได้ถึง <b>${thDate(t.certExpires, true)}</b></div></div>
@@ -1959,11 +2035,11 @@ ADMIN.sessions = el => {
     <div class="card"><div class="toolbar"><div class="filters">${[['upcoming', 'กำลังจะมาถึง'], ['past', 'ผ่านมาแล้ว'], ['all', 'ทั้งหมด'], ['archived', `ที่ลบแล้ว${nArch ? ' (' + nArch + ')' : ''}`]].map(x => `<a class="filter ${f === x[0] ? 'active' : ''}" data-sf="${x[0]}">${x[1]}</a>`).join('')}</div>
       <select class="input" id="cf" style="margin-left:auto">${courseOpts(cf, true)}</select></div>
     <div class="table-wrap"><table class="tbl tbl-sess"><thead><tr><th>วันที่</th><th>หลักสูตร</th><th>ชม./แต้ม</th><th>ค่าอบรม</th><th>ผู้สมัคร</th><th>เช็คอิน</th><th>ใบประกาศ</th><th>สถานะ</th><th></th></tr></thead><tbody>
-    ${list.map(s => `<tr><td><b>${thDate(s.date)}</b><div class="tiny muted">${esc(s.startTime)}–${esc(s.endTime)} ${s.title ? '· ' + esc(s.title) : ''}</div><div class="tiny muted">${esc(s.location || '')}</div></td>
+    ${list.map(s => `<tr><td><b>${thDate(s.date)}</b><div class="tiny muted">${esc(s.startTime)}–${esc(s.endTime)} ${s.title ? '· ' + esc(s.title) : ''}</div><div class="tiny muted">${esc(s.location || '')}</div>${s.speakerName ? `<div class="tiny">${icS('user', 12)} ${esc(s.speakerName)}${s.speakerNotifiedAt ? ` <span class="muted" title="แจ้งวิทยากรแล้ว">· แจ้งแล้ว</span>` : ''}</div>` : `<div class="tiny" style="color:var(--bad)">ยังไม่ระบุวิทยากร</div>`}</td>
       <td><span class="chip" style="background:${esc(s.courseColor)}1a;color:${esc(s.courseColor)}">${esc(s.courseCode)}</span></td>
       <td>${esc(s.hours || '-')}</td><td class="small">${Number(s.feeTotal) ? money(s.feeTotal) + (isTrue(s.vat) ? ' +VAT' : '') : '<span class="muted">ฟรี</span>'}${s.payReview ? `<div><span class="chip warn">สลิป ${s.payReview}</span></div>` : ''}</td>
       <td>${s.registered}${Number(s.capacity) ? ' / ' + s.capacity : ''}</td><td>${s.checkedIn || 0}</td><td>${s.certs}</td><td>${sessionChip(s.status)}</td>
-      <td class="acts"><div><button class="icon-btn" data-qr="${s.id}" title="QR เช็คอิน">${ic('qr')}</button> <button class="btn btn-primary btn-sm" data-roster="${s.id}">${ic('users')} <span class="hide-sm">ผู้เข้าอบรม</span></button> ${Number(s.feeTotal) ? `<button class="icon-btn" data-pdoc="${s.id}" title="การชำระเงิน / สลิป / 50 ทวิ">${ic('receipt')}</button> ` : ''}<button class="icon-btn" data-edit="${s.id}" title="แก้ไข">${ic('edit')}</button> <button class="icon-btn" data-dup="${s.id}" title="ทำซ้ำรอบนี้">${ic('copy')}</button> ${isTrue(s.archived) ? `<button class="icon-btn" data-restore="${s.id}" title="กู้คืนกลับเข้ารายการ">${ic('undo')}</button>` : `<button class="icon-btn" data-del="${s.id}" title="ลบออกจากรายการ">${ic('trash')}</button>`}</div></td></tr>`).join('')
+      <td class="acts"><div><button class="icon-btn" data-qr="${s.id}" title="QR เช็คอิน">${ic('qr')}</button> <button class="btn btn-primary btn-sm" data-roster="${s.id}">${ic('users')} <span class="hide-sm">ผู้เข้าอบรม</span></button> ${Number(s.feeTotal) ? `<button class="icon-btn" data-pdoc="${s.id}" title="การชำระเงิน / สลิป / 50 ทวิ">${ic('receipt')}</button> ` : ''}${Number(s.feeTotal) ? `<button class="icon-btn" data-coupon="${s.id}" title="คูปองส่วนลด">${ic('tag')}</button> ` : ''}<button class="icon-btn" data-evalsum="${s.id}" title="ผลประเมินวิทยากร">${ic('star')}</button> <button class="icon-btn" data-edit="${s.id}" title="แก้ไข">${ic('edit')}</button> <button class="icon-btn" data-dup="${s.id}" title="ทำซ้ำรอบนี้">${ic('copy')}</button> ${isTrue(s.archived) ? `<button class="icon-btn" data-restore="${s.id}" title="กู้คืนกลับเข้ารายการ">${ic('undo')}</button>` : `<button class="icon-btn" data-del="${s.id}" title="ลบออกจากรายการ">${ic('trash')}</button>`}</div></td></tr>`).join('')
       || `<tr><td colspan="9"><div class="empty">ไม่มีรอบอบรม</div></td></tr>`}
     </tbody></table></div></div>`;
   $('#ns').onclick = () => sessionForm(null, el);
@@ -1973,6 +2049,8 @@ ADMIN.sessions = el => {
   $$('[data-qr]', el).forEach(b => b.onclick = () => checkinQR(a.sessions.find(s => s.id === b.dataset.qr), el));
   $$('[data-edit]', el).forEach(b => b.onclick = () => sessionForm(a.sessions.find(s => s.id === b.dataset.edit), el));
   $$('[data-pdoc]', el).forEach(b => b.onclick = () => { go('admin', { tab: 'payments', ps: b.dataset.pdoc }); });
+  $$('[data-coupon]', el).forEach(b => b.onclick = () => couponsModal(a.sessions.find(s => s.id === b.dataset.coupon)));
+  $$('[data-evalsum]', el).forEach(b => b.onclick = () => evalSummary(a.sessions.find(s => s.id === b.dataset.evalsum)));
   $$('[data-dup]', el).forEach(b => b.onclick = () => duplicateSession(a.sessions.find(s => s.id === b.dataset.dup), el));
   $$('[data-del]', el).forEach(b => b.onclick = async () => {
     const s = a.sessions.find(x => x.id === b.dataset.del), upcoming = (s.endDate || s.date) >= today;
@@ -2012,9 +2090,51 @@ function checkinQR(s, host) {
   };
   draw();
 }
+// ---- คูปองส่วนลดเฉพาะรอบ ----
+async function couponsModal(s) {
+  const m = modal(`คูปองส่วนลด · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div id="cpb"><div class="skeleton" style="height:120px"></div></div>`, '', { wide: true });
+  const draw = async () => {
+    const all = (await run('listCoupons', {})).filter(c => c.sessionId === s.id);
+    $('#cpb', m.el).innerHTML = `<div class="small muted" style="margin-bottom:12px">${esc(s.courseTitle)} · ค่าอบรม ${money(s.feeTotal)} บาท · ผู้สมัครกรอกโค้ดในขั้นตอนยืนยันการลงทะเบียน ส่วนลดหักจากยอดก่อนภาษี</div>
+      <form id="cpf" class="card card-b" style="margin-bottom:14px"><div class="row" style="align-items:flex-end">
+        <div class="field" style="margin:0"><label>โค้ด *</label><input class="input" name="code" placeholder="เช่น EARLY500" style="text-transform:uppercase" required></div>
+        <div class="field" style="margin:0;max-width:150px"><label>ประเภท</label><select class="input" name="kind"><option value="amount">ลดเป็นบาท</option><option value="percent">ลดเป็น %</option></select></div>
+        <div class="field" style="margin:0;max-width:120px"><label>มูลค่า *</label><input class="input" type="number" min="0" step="0.01" name="value" required></div>
+        <div class="field" style="margin:0;max-width:140px"><label>ใช้ได้กี่สิทธิ์</label><input class="input" type="number" min="0" name="maxUses" placeholder="0 = ไม่จำกัด"></div>
+        <div class="field" style="margin:0"><label>หมายเหตุ</label><input class="input" name="note" placeholder="เช่น ลูกค้า VIP"></div>
+        <button class="btn btn-gold" id="cpadd">${ic('plus')} สร้างคูปอง</button></div></form>
+      <div class="table-wrap"><table class="tbl"><thead><tr><th>โค้ด</th><th>ส่วนลด</th><th>ใช้แล้ว</th><th>สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead><tbody>
+      ${all.map(c => `<tr><td><b class="cert-no">${esc(c.code)}</b></td><td>${c.kind === 'percent' ? esc(c.value) + '%' : money(c.value) + ' บาท'}</td><td>${c.used}${Number(c.maxUses) ? ' / ' + c.maxUses : ''}</td>
+        <td>${isTrue(c.active) ? '<span class="chip ok">ใช้งาน</span>' : '<span class="chip">ปิด</span>'}</td><td class="small">${esc(c.note || '')}</td>
+        <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-cpt="${c.id}">${isTrue(c.active) ? 'ปิด' : 'เปิด'}</button> <button class="icon-btn" data-cpd="${c.id}" title="ลบ">${ic('trash')}</button></td></tr>`).join('') || `<tr><td colspan="6"><div class="empty">ยังไม่มีคูปองสำหรับรอบนี้</div></td></tr>`}
+      </tbody></table></div>`;
+    $('#cpf', m.el).onsubmit = async e => {
+      e.preventDefault(); const v = formData(e.target);
+      await run('saveCoupon', { coupon: { code: v.code, kind: v.kind, value: Number(v.value), maxUses: Number(v.maxUses || 0), note: v.note, sessionId: s.id, active: true } }, { ok: 'สร้างคูปองแล้ว' }); draw();
+    };
+    $$('[data-cpt]', m.el).forEach(b => b.onclick = async () => { const c = all.find(x => x.id === b.dataset.cpt); await run('saveCoupon', { coupon: Object.assign({}, c, { active: !isTrue(c.active) }) }); draw(); });
+    $$('[data-cpd]', m.el).forEach(b => b.onclick = async () => { if (!await confirmBox('ลบคูปองนี้? ผู้ที่ใช้ไปแล้วยังได้ส่วนลดตามเดิม', 'ลบ', true)) return; await run('deleteCoupon', { id: b.dataset.cpd }); draw(); });
+  };
+  draw();
+}
+// ---- ผลประเมินวิทยากร ----
+async function evalSummary(s) {
+  const d = await run('evaluationSummary', { sessionId: s.id });
+  const bar = v => `<div class="bar" style="width:120px;display:inline-block;vertical-align:middle"><i style="width:${Math.round(v / 4 * 100)}%"></i></div>`;
+  const m = modal(`ผลประเมินวิทยากร · ${esc(s.courseCode)} ${thDate(s.date)}`, `<div class="small muted" style="margin-bottom:12px">${esc(s.courseTitle)}${s.speakerName ? ` · วิทยากร <b style="color:var(--ink)">${esc(s.speakerName)}</b>` : ''} · ผู้ตอบ <b style="color:var(--ink)">${d.count}</b> คน${d.count ? ` · คะแนนเฉลี่ยรวม <b style="color:var(--ink)">${d.overall.toFixed(2)}</b> / 4` : ''}</div>
+    ${d.count ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>หัวข้อ</th><th>เฉลี่ย</th>${d.scale.map((x, i) => `<th class="tiny">${i + 1} ${esc(x)}</th>`).join('')}</tr></thead><tbody>
+      ${d.questions.map((q, i) => `<tr><td class="small">${i + 1}. ${esc(q.question)}</td><td style="white-space:nowrap"><b>${q.avg.toFixed(2)}</b> ${bar(q.avg)}</td>${q.dist.map(n => `<td>${n}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      ${d.comments.length ? `<div class="list-label" style="margin-top:16px">ข้อเสนอแนะ (${d.comments.length})</div>${d.comments.map(c => `<div class="card card-b small" style="margin-bottom:8px">“${esc(c.comment)}”<div class="tiny muted">${esc(c.name)} · ${thDT(c.createdAt)}</div></div>`).join('')}` : ''}`
+      : `<div class="empty">${ic('star')}<div>ยังไม่มีผู้ทำแบบประเมิน</div><div class="small">ผู้อบรมทำแบบประเมินได้หลังเช็คอิน ที่เมนู “การอบรมของฉัน”</div></div>`}`,
+    `${d.count ? `<button class="btn btn-ghost" id="evcsv">${ic('csv')} Export CSV</button>` : ''}<button class="btn btn-primary" data-x>ปิด</button>`, { wide: true });
+  $('#evcsv', m.el) && ($('#evcsv', m.el).onclick = () => {
+    const rows = [['ชื่อ', 'อีเมล', 'บริษัท'].concat(d.questions.map((q, i) => 'ข้อ ' + (i + 1))).concat(['ข้อเสนอแนะ', 'เวลา'])].concat(d.rows.map(r => [r.name, r.email, r.company].concat(r.q).concat([r.comment, r.createdAt])));
+    downloadBlob('data:text/csv;charset=utf-8,﻿' + encodeURIComponent(rows.map(r => r.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(',')).join('\n')), `evaluation_${s.courseCode}_${s.date}.csv`);
+  });
+}
 function feeRowsHtml(fees) { return fees.map((f, i) => `<div class="fee-row"><input class="input" data-fn="${i}" placeholder="รายการ เช่น ค่าเอกสาร / ค่าอาหาร" value="${esc(f.name || '')}"><input class="input" type="number" min="0" data-fa="${i}" placeholder="บาท" value="${esc(f.amount || '')}"><button type="button" class="icon-btn" data-fd="${i}">${ic('x')}</button></div>`).join(''); }
 function duplicateSession(src, host) {
-  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note'];
+  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note', 'speakerName', 'speakerEmail'];
   const s = { status: 'open' }; keep.forEach(k => { if (src[k] !== undefined) s[k] = src[k]; });
   sessionForm(s, host, { title: `ทำซ้ำรอบอบรม · ${esc(src.courseCode || '')} ${thDate(src.date)}`, hint: 'คัดลอกรายละเอียด เวลา ชั่วโมง ค่าอบรม และเทมเพลตจากรอบเดิมแล้ว กรุณาเลือกวันที่ใหม่ ระบบจะสร้างรหัสเช็คอินใหม่ให้ และไม่คัดลอกรายชื่อผู้ลงทะเบียน' });
 }
@@ -2029,6 +2149,11 @@ function sessionForm(s, host, opt) {
     <div class="row"><div class="field"><label>เวลาเริ่ม</label><input class="input" type="time" name="startTime" value="${esc(s.startTime || '')}"></div><div class="field"><label>เวลาสิ้นสุด</label><input class="input" type="time" name="endTime" value="${esc(s.endTime || '')}"></div>
       <div class="field"><label>ชั่วโมงอบรม *</label><input class="input" type="number" min="0.5" step="0.5" name="hours" value="${esc(s.hours || '')}" required><span class="hint">ระบบให้ ${esc(S.settings.POINTS_PER_HOUR || 1)} แต้ม/ชม. อัตโนมัติ</span></div>
       <div class="field"><label>จำนวนที่นั่ง</label><input class="input" type="number" min="0" name="capacity" value="${esc(s.capacity || '')}"><span class="hint">0 = ไม่จำกัด</span></div></div>
+    <fieldset class="fs" style="margin-bottom:14px"><legend>วิทยากร</legend><div class="row">
+      <div class="field"><label>ชื่อวิทยากร *</label><input class="input" name="speakerName" value="${esc(s.speakerName || '')}" required></div>
+      <div class="field"><label>อีเมลวิทยากร *</label><input class="input" type="email" name="speakerEmail" value="${esc(s.speakerEmail || '')}" required></div></div>
+      <div class="hint small muted">ระบบส่งอีเมลแจ้งวิทยากร (รายละเอียดรอบ + รายชื่อผู้ลงทะเบียน) ${esc(S.settings.SPEAKER_REMIND_DAYS || 3)} วันก่อนวันอบรมอัตโนมัติ${s.speakerNotifiedAt ? ` · แจ้งแล้วเมื่อ ${thDT(s.speakerNotifiedAt)}` : ''}</div>
+      ${s.id ? `<button type="button" class="btn btn-ghost btn-sm" id="nsp" style="margin-top:8px">${ic('mail')} ส่งอีเมลแจ้งวิทยากรตอนนี้</button>` : ''}</fieldset>
     <div class="field"><label>สถานที่</label><input class="input" name="location" value="${esc(s.location || '')}"></div>
     <div class="field"><label>ลิงก์แผนที่ (Google Maps)</label><input class="input" name="mapUrl" value="${esc(s.mapUrl || '')}"></div>
     <fieldset class="fs"><legend>ค่าอบรม และค่าใช้จ่ายอื่น</legend>
@@ -2054,6 +2179,10 @@ function sessionForm(s, host, opt) {
   $('#af', m.el).onclick = () => { fees.push({ name: '', amount: 0 }); drawFees(); };
   $('[name=price]', m.el).oninput = total;
   drawFees();
+  $('#nsp', m.el) && ($('#nsp', m.el).onclick = async () => {
+    if (!await confirmBox(`ส่งอีเมลแจ้งกำหนดการถึงวิทยากร ${esc(s.speakerEmail || '')}?<br><span class="small muted">ถ้าแก้ชื่อ/อีเมลวิทยากร กรุณากดบันทึกก่อน</span>`, 'ส่งอีเมล')) return;
+    await run('notifySpeaker', { sessionId: s.id }, { ok: 'ส่งอีเมลถึงวิทยากรแล้ว' });
+  });
   if (opt.hint) setTimeout(() => { const d = $('[name=date]', m.el); if (d) d.focus(); }, 50);
   $('#ok', m.el).onclick = async () => {
     const f = $('#sf', m.el); if (!f.reportValidity()) return;

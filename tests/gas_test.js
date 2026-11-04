@@ -9,7 +9,7 @@ function mkSheet(name){ const data=[]; const sh={name,data,
   sheets[name]=sh; return sh;}
 mkSheet('ชีต1');
 const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>mkSheet(n),getSheets:()=>Object.values(sheets),deleteSheet:s=>delete sheets[s.name]};
-const props={}; const cache={};
+const props={}; const cache={}; const SENT=[];
 const ctx={ console, Logger:{log:console.log},
   SpreadsheetApp:{openById:()=>ss},
   Utilities:{ getUuid:()=>crypto.randomUUID(), formatDate:(d,tz,f)=>{const p=n=>String(n).padStart(2,'0');return f.replace('yyyy',d.getFullYear()).replace('yyMMdd',String(d.getFullYear()).slice(2)+p(d.getMonth()+1)+p(d.getDate())).replace('MM',p(d.getMonth()+1)).replace('dd',p(d.getDate())).replace('HH',p(d.getHours())).replace('mm',p(d.getMinutes()))},
@@ -22,7 +22,7 @@ const ctx={ console, Logger:{log:console.log},
   LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},
   Session:{getScriptTimeZone:()=>'Asia/Bangkok'},
   ScriptApp:{getService:()=>({getUrl:()=>'https://script.google.com/x/exec'}),getProjectTriggers:()=>[],newTrigger:()=>{const t={timeBased:()=>t,everyDays:()=>t,everyMinutes:()=>t,atHour:()=>t,create:()=>console.log('TRIGGER created')};return t;}},
-  MailApp:{sendEmail:o=>console.log('MAIL ->',o.to,'|',o.subject)},
+  MailApp:{sendEmail:o=>{SENT.push(o);console.log('MAIL ->',o.to,'|',o.subject)}},
   DriveApp:{ createFolder:n=>({getId:()=>'F1',getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>({createFile:()=>({getId:()=>'FILE1',setSharing(){}})}),getFoldersByName:()=>({hasNext:()=>false})}), getFolderById:()=>{throw 1}, Access:{},Permission:{} },
   HtmlService:{}, Date, Math, JSON, String, Number, Object, Array, Error, parseInt
 };
@@ -37,7 +37,7 @@ const u=A('register',{email:'u@x.com',password:'secret1',firstName:'วสัน
 ok(u.user.points && u.user.points.balance===0 && u.user.rules.maxActive===5,'me has points+rules');
 const C=A('adminData',{token:AT}).courses;
 ok(A('saveSession',{token:AT,session:{courseId:C[0].id,date:day(10)}},true).ok===false,'session requires hours');
-const mk=(n,o)=>A('saveSession',{token:AT,session:Object.assign({courseId:C[0].id,date:day(n),startTime:'09:00',endTime:'16:00',hours:6,capacity:30,location:'BKK'},o||{})});
+const mk=(n,o)=>A('saveSession',{token:AT,session:Object.assign({courseId:C[0].id,date:day(n),startTime:'09:00',endTime:'16:00',hours:6,capacity:30,location:'BKK',speakerName:'อ.สมชาย',speakerEmail:'sp@x.com'},o||{})});
 const SS=[mk(10),mk(12),mk(14),mk(16),mk(18),mk(20),mk(1)];
 ok(/^\d{6}$/.test(String(SS[0].checkinCode)),'checkinCode generated');
 ok(!('checkinCode' in A('listSessions',{token:T}).sessions[0]),'checkinCode hidden from users');
@@ -81,14 +81,39 @@ const mtU=A('myTrainings',{token:u2.token}).list.find(x=>x.session.id===SS[6].id
 ctx.insert_('Templates',{id:'T1',name:'t',imageFileId:'x',config:JSON.stringify(ctx.defaultTemplateConfig('#000','#111'))});
 ctx.update_('Courses',C[0].id,{defaultTemplateId:'T1'});
 const iss=A('issueCerts',{token:AT,regIds:[rr.id]}); ok(iss.length===1,'cert issued '+iss[0].certNo);
+ok(/แบบประเมิน/.test(A('getCertificate',{token:u3.token,regId:rr.id},true).error||''),'cert locked until evaluation');
+ok(A('myTrainings',{token:u3.token}).list.find(x=>x.reg.id===rr.id).certLocked===true,'myTrainings flags certLocked');
+ok(!A('submitEvaluation',{token:u3.token,regId:rr.id,answers:[4,4,3]},true).ok,'evaluation needs all 5 answers');
+const ev=A('submitEvaluation',{token:u3.token,regId:rr.id,answers:[4,4,3,4,2],comment:'ดีมาก'}); ok(ev.evaluatedAt,'evaluation saved');
+ok(!A('submitEvaluation',{token:u3.token,regId:rr.id,answers:[4,4,4,4,4]},true).ok,'evaluation only once');
+const es=A('evaluationSummary',{token:AT,sessionId:today.id}); ok(es.count===1 && es.questions[4].avg===2 && es.comments.length===1,'evaluation summary');
 const cert=A('getCertificate',{token:u3.token,regId:rr.id}); ok(cert.expires===day(0).slice(0,4)*1+1+day(0).slice(4),'expires +12 months '+cert.expires);
 ok(A('verifyCert',{certNo:iss[0].certNo}).expired===false,'verify not expired');
 const old=mk(-400); const u4=A('register',{email:'e@x.com',password:'secret1',firstName:'e',lastName:'e'});
-const ro={id:'ROLD',userId:u4.user.id,sessionId:old.id,status:'attended',certNo:'OLD-1'}; ctx.insert_('Registrations',ro);
+const ro={id:'ROLD',userId:u4.user.id,sessionId:old.id,status:'attended',certNo:'OLD-1',evaluatedAt:'2025-01-01'}; ctx.insert_('Registrations',ro);
 ok(/หมดอายุ/.test(A('getCertificate',{token:u4.token,regId:'ROLD'},true).error||''),'expired cert blocked for user');
 ok(A('myTrainings',{token:u4.token}).list[0].certExpired===true,'myTrainings flags expired');
 const v=A('verifyCert',{certNo:'OLD-1'}); ok(v.valid && v.expired,'verify shows expired but valid record');
 ok(A('getCertificate',{token:AT,regId:'ROLD'}).certNo==='OLD-1','admin can still view expired');
+// coupons + person no VAT
+const ps=mk(30,{courseId:C[1].id,price:1000,vat:true,whtAllowed:true});
+ok(!A('saveCoupon',{token:AT,coupon:{code:'x',sessionId:ps.id,kind:'amount',value:100}},true).ok,'coupon code validated');
+A('saveCoupon',{token:AT,coupon:{code:'save20',sessionId:ps.id,kind:'percent',value:20,maxUses:1}});
+ok(!A('checkCoupon',{token:u4.token,sessionId:SS[0].id,code:'SAVE20'},true).ok,'coupon only for its session');
+ok(A('checkCoupon',{token:u4.token,sessionId:ps.id,code:'save20'}).value===20,'coupon check ok');
+const pc=A('registerSession',{token:u4.token,sessionId:ps.id,saleName:'x',source:'y',couponCode:'save20',billing:{billingType:'person',billingName:'e'}});
+ok(pc.discount===200 && pc.subtotal===800 && pc.vatAmount===0 && pc.total===800,'20% coupon, person no VAT '+JSON.stringify([pc.discount,pc.subtotal,pc.vatAmount,pc.total]));
+const u6=A('register',{email:'g@x.com',password:'secret1',firstName:'f',lastName:'f'});
+ok(/ครบ/.test(A('registerSession',{token:u6.token,sessionId:ps.id,saleName:'x',source:'y',couponCode:'SAVE20',billing:{billingType:'company',billingName:'co'}},true).error||''),'coupon max uses');
+const pco=A('registerSession',{token:u6.token,sessionId:ps.id,saleName:'x',source:'y',billing:{billingType:'company',billingName:'co'},wht:true});
+ok(pco.vatAmount===70 && pco.whtAmount===30 && pco.total===1040,'company VAT+WHT unchanged');
+ok(A('listCoupons',{token:AT})[0].used===1,'coupon usage counted');
+ok(!('speakerEmail' in A('listSessions',{token:u6.token}).sessions[0]),'speaker email hidden from users');
+ok(!A('saveSession',{token:AT,session:{courseId:C[0].id,date:day(3),hours:6}},true).ok,'speaker required');
+// speaker reminder (3 days before)
+const sp=mk(2,{speakerEmail:'speaker@x.com'}); SENT.length=0; ctx.dailyJobs();
+ok(SENT.some(m=>m.to==='speaker@x.com' && /แจ้งกำหนดการบรรยาย/.test(m.subject)),'speaker notified before training');
+SENT.length=0; ctx.dailyJobs(); ok(!SENT.some(m=>m.to==='speaker@x.com'),'speaker notified only once');
 // rewards
 A('saveReward',{token:AT,reward:{kind:'item',name:'cup',points:5,stock:1,active:true}});
 A('saveReward',{token:AT,reward:{kind:'prize',name:'pb',weight:1,stock:'',active:true}});
