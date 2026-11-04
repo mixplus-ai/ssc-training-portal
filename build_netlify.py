@@ -1,6 +1,7 @@
 import os, shutil
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 OUT = 'netlify-site'
+cfg = open(f'{OUT}/config.js', encoding='utf-8').read() if os.path.exists(f'{OUT}/config.js') else ''
 readme = open(f'{OUT}/README-Netlify.md', encoding='utf-8').read() if os.path.exists(f'{OUT}/README-Netlify.md') else ''
 shutil.rmtree(OUT, ignore_errors=True); os.makedirs(OUT)
 if readme: open(f'{OUT}/README-Netlify.md', 'w', encoding='utf-8').write(readme)
@@ -33,7 +34,8 @@ html = f'''<!DOCTYPE html>
 </html>
 '''
 open(f'{OUT}/index.html', 'w', encoding='utf-8').write(html)
-open(f'{OUT}/config.js', 'w', encoding='utf-8').write('''/*
+if cfg: open(f'{OUT}/config.js', 'w', encoding='utf-8').write(cfg)
+else: open(f'{OUT}/config.js', 'w', encoding='utf-8').write('''/*
  * ใส่ลิงก์ Web app ของ Google Apps Script (ลงท้ายด้วย /exec) ระหว่างเครื่องหมาย ' '
  * เช่น window.API_URL = 'https://script.google.com/macros/s/AKfy.../exec';
  * ถ้าเว้นว่างไว้ เว็บจะเปิดเป็น “โหมดเดโม” ใช้ข้อมูลจำลอง
