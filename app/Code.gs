@@ -532,7 +532,7 @@ def_('restoreSession', 'admin', function (p) {
   return true;
 });
 function ensureColumn_(name, col) {
-  var sh = ss_().getSheetByName(name), h = headers_(name);
+  var sh = sheet_(name), h = headers_(name);
   if (h.indexOf(col) < 0) { sh.getRange(1, h.length + 1).setValue(col); delete TABLE_CACHE_[name]; }
 }
 
@@ -727,7 +727,7 @@ def_('sendTestEmail', 'admin', function (p, user) {
 });
 
 def_('saveSettings', 'admin', function (p) {
-  var sh = ss_().getSheetByName('Settings');
+  var sh = sheet_('Settings');
   var keys = readTable_('Settings').map(function (r) { return r.key; });
   Object.keys(p.settings || {}).forEach(function (k) {
     var i = keys.indexOf(k);
@@ -918,15 +918,26 @@ function readTable_(name) {
   TABLE_CACHE_[name] = rows;
   return rows.map(function (o) { return Object.assign({}, o); });
 }
-function headers_(name) { var sh = ss_().getSheetByName(name); return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]; }
+/** คืนชีตตามชื่อ ถ้ายังไม่มี (ยังไม่ได้รัน setup) สร้างให้พร้อมหัวคอลัมน์ */
+function sheet_(name) {
+  var ss = ss_(), sh = ss.getSheetByName(name);
+  if (sh && sh.getLastColumn() > 0) return sh;
+  if (!sh) sh = ss.insertSheet(name);
+  var h = SCHEMA[name] || ['id'];
+  sh.getRange(1, 1, 1, h.length).setValues([h]); sh.setFrozenRows(1);
+  if (name === 'Settings') DEFAULT_SETTINGS.forEach(function (row) { sh.appendRow(row); });
+  delete TABLE_CACHE_[name];
+  return sh;
+}
+function headers_(name) { var sh = sheet_(name); return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]; }
 function insert_(name, obj) {
   delete TABLE_CACHE_[name];
   var h = headers_(name);
-  ss_().getSheetByName(name).appendRow(h.map(function (k) { return toCell_(k, obj[k]); }));
+  sheet_(name).appendRow(h.map(function (k) { return toCell_(k, obj[k]); }));
 }
 function update_(name, id, patch) {
   delete TABLE_CACHE_[name];
-  var sh = ss_().getSheetByName(name), h = headers_(name);
+  var sh = sheet_(name), h = headers_(name);
   var ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return r[0]; });
   var i = ids.indexOf(id);
   if (i < 0) throw new Error('ไม่พบข้อมูล ' + id);
@@ -940,7 +951,7 @@ function update_(name, id, patch) {
 }
 function remove_(name, id) {
   delete TABLE_CACHE_[name];
-  var sh = ss_().getSheetByName(name);
+  var sh = sheet_(name);
   var ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(function (r) { return r[0]; });
   var i = ids.indexOf(id);
   if (i >= 0) sh.deleteRow(i + 2);
