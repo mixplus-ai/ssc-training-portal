@@ -2097,9 +2097,20 @@ VIEWS.checkin = async el => {
       <form id="cf" class="code-form"><input class="input code-in" name="code" inputmode="numeric" maxlength="6" placeholder="••••••" value="${esc(/^\d{6}$/.test(code) ? code : '')}" autocomplete="one-time-code">
         <button class="btn btn-gold btn-lg btn-block">${ic('check')} เช็คอิน</button></form>
       <div class="tiny muted" style="text-align:center;margin-top:12px">เปิดเช็คอินก่อนเวลาเริ่มอบรม ${esc(S.settings.CHECKIN_OPEN_MINUTES || 120)} นาที · เช็คอินแล้วจะได้รับแต้มและเปิดดาวน์โหลดเอกสารเมื่อเริ่มอบรม</div>
+      ${Number(S.settings.CHECKIN_RADIUS_M || 0) ? `<div class="alert-row info small" style="margin-top:12px">${ic('pin')}<div>ต้องเช็คอินที่สถานที่อบรม (ในรัศมี ${esc(S.settings.CHECKIN_RADIUS_M)} เมตร) ระบบจะขออนุญาตใช้ตำแหน่งของมือถือ กรุณากด “อนุญาต”</div></div>
+      <div class="alert-row warn small" id="geoTip" style="margin-top:8px;display:none">${ic('alert')}<div>เบราว์เซอร์ปิดสิทธิ์ตำแหน่งไว้ · iPhone: ตั้งค่า › ความเป็นส่วนตัว › บริการหาตำแหน่ง › Safari/Chrome เลือก “ขณะใช้งาน” · Android: แตะไอคอนแม่กุญแจข้างช่อง URL › สิทธิ์ › ตำแหน่ง › อนุญาต แล้วกดเช็คอินอีกครั้ง</div></div>` : ''}
     </div></div></div>`;
+  const radius = Number(S.settings.CHECKIN_RADIUS_M || 0);
+  // ขอตำแหน่งจากมือถือ (ใช้ตรวจว่าอยู่ในรัศมีสถานที่อบรม)
+  const locate = () => new Promise(res => {
+    if (!radius || !navigator.geolocation) return res({});
+    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy || 0) }),
+      e => res({ geoErr: e && e.code }), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
   const submit = async c => {
-    const r = await run('checkin', { code: c });
+    loading(true); let pos; try { pos = await locate(); } finally { loading(false); }
+    if (pos.geoErr === 1 && $('#geoTip')) $('#geoTip').style.display = 'flex';
+    const r = await run('checkin', Object.assign({ code: c }, pos.lat != null ? { lat: pos.lat, lng: pos.lng, acc: pos.acc } : {}));
     await refreshMe();
     $('#ck').innerHTML = `<div class="success" style="padding:18px 6px"><div class="seal">${ic('check')}</div><h2>${r.already ? 'ท่านเช็คอินแล้ว' : 'เช็คอินสำเร็จ'}</h2>
       <p class="muted">${esc(r.course)}<br>${thDateRange(r.session.date, r.session.endDate)} · ${esc(r.session.startTime)}–${esc(r.session.endTime)} น.<br>${esc(r.session.location || '')}</p>
@@ -2512,7 +2523,7 @@ async function evalSummary(s) {
 }
 function feeRowsHtml(fees) { return fees.map((f, i) => `<div class="fee-row"><input class="input" data-fn="${i}" placeholder="รายการ เช่น ค่าเอกสาร / ค่าอาหาร" value="${esc(f.name || '')}"><input class="input" type="number" min="0" data-fa="${i}" placeholder="บาท" value="${esc(f.amount || '')}"><button type="button" class="icon-btn" data-fd="${i}">${ic('x')}</button></div>`).join(''); }
 function duplicateSession(src, host) {
-  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note', 'speakerName', 'speakerEmail'];
+  const keep = ['courseId', 'title', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'templateId', 'price', 'fees', 'vat', 'whtAllowed', 'note', 'speakerName', 'speakerEmail', 'lat', 'lng'];
   const s = { status: 'open' }; keep.forEach(k => { if (src[k] !== undefined) s[k] = src[k]; });
   sessionForm(s, host, { title: `ทำซ้ำรอบอบรม · ${esc(src.courseCode || '')} ${thDate(src.date)}`, hint: 'คัดลอกรายละเอียด เวลา ชั่วโมง ค่าอบรม และเทมเพลตจากรอบเดิมแล้ว กรุณาเลือกวันที่ใหม่ ระบบจะสร้างรหัสเช็คอินใหม่ให้ และไม่คัดลอกรายชื่อผู้ลงทะเบียน' });
 }
@@ -2533,7 +2544,9 @@ function sessionForm(s, host, opt) {
       <div class="hint small muted">ระบบส่งอีเมลแจ้งวิทยากร (รายละเอียดรอบ + รายชื่อผู้ลงทะเบียน) ${esc(S.settings.SPEAKER_REMIND_DAYS || 3)} วันก่อนวันอบรมอัตโนมัติ${s.speakerNotifiedAt ? ` · แจ้งแล้วเมื่อ ${thDT(s.speakerNotifiedAt)}` : ''}</div>
       ${s.id ? `<button type="button" class="btn btn-ghost btn-sm" id="nsp" style="margin-top:8px">${ic('mail')} ส่งอีเมลแจ้งวิทยากรตอนนี้</button>` : ''}</fieldset>
     <div class="field"><label>สถานที่</label><input class="input" name="location" value="${esc(s.location || '')}"></div>
-    <div class="field"><label>ลิงก์แผนที่ (Google Maps)</label><input class="input" name="mapUrl" value="${esc(s.mapUrl || '')}"></div>
+    <div class="row"><div class="field"><label>ลิงก์แผนที่ (Google Maps)</label><input class="input" name="mapUrl" value="${esc(s.mapUrl || '')}"></div>
+      <div class="field" style="max-width:300px"><label>พิกัดสถานที่ (ใช้ตรวจรัศมีเช็คอิน)</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input class="input" name="latlng" id="latlng" placeholder="เช่น 13.7563, 100.5018" value="${s.lat && s.lng ? esc(s.lat + ', ' + s.lng) : ''}"><button type="button" class="btn btn-ghost btn-sm" id="geo" title="ดึงพิกัดจากลิงก์แผนที่">${ic('pin')}</button></div>
+        <span class="hint" id="geoh">${Number(S.settings.CHECKIN_RADIUS_M) > 0 ? `เช็คอินได้ในรัศมี ${esc(S.settings.CHECKIN_RADIUS_M)} เมตร · ` : ''}ดึงจากลิงก์อัตโนมัติ หรือคลิกขวาที่หมุดใน Google Maps แล้ววางตัวเลข</span></div></div>
     <fieldset class="fs"><legend>ค่าอบรม และค่าใช้จ่ายอื่น</legend>
       <div class="row"><div class="field" style="max-width:200px"><label>ค่าอบรม (บาท)</label><input class="input" type="number" min="0" name="price" value="${esc(s.price || '')}" placeholder="0 = ฟรี"></div>
         <div class="field"><label class="check" style="margin-top:26px"><input type="checkbox" name="vat" ${isTrue(s.vat) ? 'checked' : ''}> บวก VAT ${esc(S.settings.VAT_RATE || 7)}%</label></div>
@@ -2561,10 +2574,23 @@ function sessionForm(s, host, opt) {
     if (!await confirmBox(`ส่งอีเมลแจ้งกำหนดการถึงวิทยากร ${esc(s.speakerEmail || '')}?<br><span class="small muted">ถ้าแก้ชื่อ/อีเมลวิทยากร กรุณากดบันทึกก่อน</span>`, 'ส่งอีเมล')) return;
     await run('notifySpeaker', { sessionId: s.id }, { ok: 'ส่งอีเมลถึงวิทยากรแล้ว' });
   });
+  const geoIn = $('#latlng', m.el), geoH = $('#geoh', m.el), mapIn = $('[name=mapUrl]', m.el);
+  const fetchGeo = async quiet => {
+    const url = mapIn.value.trim(); if (!url) return quiet || toast('กรุณาใส่ลิงก์แผนที่ก่อน', true);
+    geoH.textContent = 'กำลังดึงพิกัด...';
+    try { const g = await call('geoFromMapUrl', { url }); geoIn.value = g.lat.toFixed(6) + ', ' + g.lng.toFixed(6); geoH.innerHTML = `ได้พิกัดแล้ว · <a href="https://www.google.com/maps?q=${g.lat},${g.lng}" target="_blank" rel="noopener">ตรวจดูบนแผนที่</a>`; }
+    catch (e) { geoH.textContent = 'ดึงพิกัดจากลิงก์นี้ไม่ได้ กรุณาคลิกขวาที่หมุดใน Google Maps แล้วคัดลอกตัวเลขมาวาง'; }
+  };
+  $('#geo', m.el).onclick = () => fetchGeo(false);
+  mapIn.onchange = () => { geoIn.value = ''; fetchGeo(true); };
+  if (mapIn.value.trim() && !geoIn.value) fetchGeo(true);
   if (opt.hint) setTimeout(() => { const d = $('[name=date]', m.el); if (d) d.focus(); }, 50);
   $('#ok', m.el).onclick = async () => {
     const f = $('#sf', m.el); if (!f.reportValidity()) return;
     const v = formData(f);
+    const ll = String(v.latlng || '').trim(); delete v.latlng;
+    if (ll) { const mm = ll.match(/^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/); if (!mm) return toast('รูปแบบพิกัดไม่ถูกต้อง ตัวอย่าง 13.7563, 100.5018', true); v.lat = Number(mm[1]); v.lng = Number(mm[2]); }
+    else { v.lat = ''; v.lng = ''; }
     await run('saveSession', { session: Object.assign({ id: s.id }, v, { fees: fees.filter(x => x.name && Number(x.amount)) }) }, { ok: 'บันทึกรอบอบรมแล้ว' });
     m.close(); reloadTab(host);
   };
@@ -2584,7 +2610,7 @@ async function roster(sessionId, host) {
       ${list.map(r => `<tr style="${r.reg.status === 'cancelled' ? 'opacity:.5' : ''}"><td><input type="checkbox" class="rc" value="${r.reg.id}" ${r.reg.status === 'cancelled' ? 'disabled' : ''}></td>
         <td><div class="person">${avatar(r.user)}<div><b>${esc(r.user.fullName)}</b><div class="tiny muted">${esc(r.user.email)}</div>${r.reg.cancelReason ? `<div class="tiny" style="color:var(--bad)">ยกเลิก: ${esc(r.reg.cancelReason)}</div>` : ''}</div></div></td>
         <td class="small">${esc(r.user.company || '-')}<div class="tiny muted">${esc(r.user.phone || '')}</div>${r.reg.saleName ? `<div class="tiny" title="Sale ที่เชิญ / ช่องทาง">Sale: <b>${esc(r.reg.saleName)}</b>${r.reg.source ? ' · ' + esc(r.reg.source) : ''}</div>` : ''}</td>
-        <td class="small">${r.reg.checkedInAt ? `<span class="chip ok">${icS('check', 12)} ${thDT(r.reg.checkedInAt).split(' ').slice(-2).join(' ')}</span>` : '<span class="muted">—</span>'}</td>
+        <td class="small">${r.reg.checkedInAt ? `<span class="chip ok">${icS('check', 12)} ${thDT(r.reg.checkedInAt).split(' ').slice(-2).join(' ')}</span>${r.reg.checkinDist !== '' && r.reg.checkinDist != null ? `<div class="tiny muted">ห่าง ${esc(r.reg.checkinDist)} ม.</div>` : ''}` : '<span class="muted">—</span>'}</td>
         <td>${statusChip(r.reg.status)}</td>
         ${paid ? `<td>${payChip(r.reg.payStatus) || '-'}<div class="tiny">${money(r.reg.total)} บ.</div>${r.reg.status !== 'cancelled' ? `<button class="btn btn-ghost btn-sm" data-pay="${r.reg.id}" style="margin-top:4px">${ic('receipt')} ตรวจ</button>` : ''}</td>` : ''}
         <td>${r.reg.certNo ? `<span class="cert-no">${esc(r.reg.certNo)}</span>` : '<span class="muted">—</span>'}</td>

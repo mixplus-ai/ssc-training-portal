@@ -437,9 +437,20 @@ VIEWS.checkin = async el => {
       <form id="cf" class="code-form"><input class="input code-in" name="code" inputmode="numeric" maxlength="6" placeholder="••••••" value="${esc(/^\d{6}$/.test(code) ? code : '')}" autocomplete="one-time-code">
         <button class="btn btn-gold btn-lg btn-block">${ic('check')} เช็คอิน</button></form>
       <div class="tiny muted" style="text-align:center;margin-top:12px">เปิดเช็คอินก่อนเวลาเริ่มอบรม ${esc(S.settings.CHECKIN_OPEN_MINUTES || 120)} นาที · เช็คอินแล้วจะได้รับแต้มและเปิดดาวน์โหลดเอกสารเมื่อเริ่มอบรม</div>
+      ${Number(S.settings.CHECKIN_RADIUS_M || 0) ? `<div class="alert-row info small" style="margin-top:12px">${ic('pin')}<div>ต้องเช็คอินที่สถานที่อบรม (ในรัศมี ${esc(S.settings.CHECKIN_RADIUS_M)} เมตร) ระบบจะขออนุญาตใช้ตำแหน่งของมือถือ กรุณากด “อนุญาต”</div></div>
+      <div class="alert-row warn small" id="geoTip" style="margin-top:8px;display:none">${ic('alert')}<div>เบราว์เซอร์ปิดสิทธิ์ตำแหน่งไว้ · iPhone: ตั้งค่า › ความเป็นส่วนตัว › บริการหาตำแหน่ง › Safari/Chrome เลือก “ขณะใช้งาน” · Android: แตะไอคอนแม่กุญแจข้างช่อง URL › สิทธิ์ › ตำแหน่ง › อนุญาต แล้วกดเช็คอินอีกครั้ง</div></div>` : ''}
     </div></div></div>`;
+  const radius = Number(S.settings.CHECKIN_RADIUS_M || 0);
+  // ขอตำแหน่งจากมือถือ (ใช้ตรวจว่าอยู่ในรัศมีสถานที่อบรม)
+  const locate = () => new Promise(res => {
+    if (!radius || !navigator.geolocation) return res({});
+    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy || 0) }),
+      e => res({ geoErr: e && e.code }), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
   const submit = async c => {
-    const r = await run('checkin', { code: c });
+    loading(true); let pos; try { pos = await locate(); } finally { loading(false); }
+    if (pos.geoErr === 1 && $('#geoTip')) $('#geoTip').style.display = 'flex';
+    const r = await run('checkin', Object.assign({ code: c }, pos.lat != null ? { lat: pos.lat, lng: pos.lng, acc: pos.acc } : {}));
     await refreshMe();
     $('#ck').innerHTML = `<div class="success" style="padding:18px 6px"><div class="seal">${ic('check')}</div><h2>${r.already ? 'ท่านเช็คอินแล้ว' : 'เช็คอินสำเร็จ'}</h2>
       <p class="muted">${esc(r.course)}<br>${thDateRange(r.session.date, r.session.endDate)} · ${esc(r.session.startTime)}–${esc(r.session.endTime)} น.<br>${esc(r.session.location || '')}</p>

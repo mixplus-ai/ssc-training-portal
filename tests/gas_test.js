@@ -146,4 +146,21 @@ const past=mk(-2); ctx.insert_('Registrations',{id:'RP',userId:u5.user.id,sessio
 ctx.dailyJobs();
 ok(!!ctx.findBy_('Registrations','id',rsoon.id).remindedAt,'reminder sent 5 days before');
 ok(ctx.findBy_('Registrations','id','RP').status==='absent','auto no-show');
+// geofence check-in (100 m from coords parsed out of the Google Maps link)
+const gs=mk(0,{startTime:'00:00',endTime:'23:59',mapUrl:'https://www.google.com/maps/place/SSC/@13.70,100.60,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x0!8m2!3d13.7563!4d100.5018'});
+ok(Number(gs.lat)===13.7563 && Number(gs.lng)===100.5018,'coords parsed from map link (!3d!4d preferred over @)');
+ok(A('publicHome',{}).sessions.some(x=>x.id===gs.id && Number(x.lat)===13.7563),'coords public');
+const u7=A('register',{email:'geo@x.com',password:'secret1',firstName:'g',lastName:'g'});
+A('registerSession',{saleName:'Mr Teerawat Chatpomarat (Boy)',source:'อื่นๆ: test',token:u7.token,sessionId:gs.id});
+ok(/ตำแหน่ง/.test(A('checkin',{token:u7.token,code:gs.id+'.'+gs.checkinCode},true).error||''),'checkin without location rejected');
+ok(/ห่าง.*1\.1 กม/.test(A('checkin',{token:u7.token,code:gs.id+'.'+gs.checkinCode,lat:13.7663,lng:100.5018,acc:10},true).error||''),'checkin 1.1 km away rejected');
+ok(!A('checkin',{token:u7.token,code:gs.id+'.'+gs.checkinCode,lat:13.7577,lng:100.5018,acc:5},true).ok,'checkin 156 m away rejected');
+const gok=A('checkin',{token:u7.token,code:gs.id+'.'+gs.checkinCode,lat:13.7570,lng:100.5018,acc:30}); ok(gok && !gok.already,'checkin 78 m away ok');
+ok(ctx.findBy_('Registrations','id',gok.regId).checkinDist===78,'distance stored');
+ok(A('checkin',{token:u7.token,code:gs.id+'.'+gs.checkinCode}).already,'already checked in needs no location');
+A('saveSettings',{token:AT,settings:{CHECKIN_RADIUS_M:'0'}});
+const gs2=mk(0,{startTime:'00:00',endTime:'23:59',lat:13.7563,lng:100.5018}); A('registerSession',{saleName:'Mr Teerawat Chatpomarat (Boy)',source:'อื่นๆ: test',token:u7.token,sessionId:gs2.id});
+ok(A('checkin',{token:u7.token,code:gs2.id+'.'+gs2.checkinCode}).regId,'radius 0 = no location check');
+A('saveSettings',{token:AT,settings:{CHECKIN_RADIUS_M:'100'}});
+ok(/พิกัด/.test(A('saveSession',{token:AT,session:Object.assign({},gs2,{lat:200,lng:5})},true).error||''),'bad coords rejected');
 console.log(fails?`\n${fails} FAILED`:'\nALL PASS');

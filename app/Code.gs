@@ -14,10 +14,10 @@ var SCHEMA = {
     'billingType', 'billingName', 'taxId', 'branch', 'billingAddress', 'role', 'status', 'bannedUntil', 'penaltyAt', 'createdAt', 'lastLogin'],
   Courses: ['id', 'code', 'title', 'subtitle', 'description', 'hours', 'price', 'color', 'coverUrl', 'defaultTemplateId', 'sort', 'active'],
   Sessions: ['id', 'courseId', 'title', 'date', 'endDate', 'startTime', 'endTime', 'hours', 'location', 'mapUrl', 'capacity', 'status', 'templateId',
-    'price', 'fees', 'vat', 'whtAllowed', 'checkinCode', 'note', 'createdAt', 'archived', 'speakerName', 'speakerEmail', 'speakerNotifiedAt'],
+    'price', 'fees', 'vat', 'whtAllowed', 'checkinCode', 'note', 'createdAt', 'archived', 'speakerName', 'speakerEmail', 'speakerNotifiedAt', 'lat', 'lng'],
   Registrations: ['id', 'userId', 'sessionId', 'status', 'registeredAt', 'checkedInAt', 'attendedAt', 'certNo', 'certIssuedAt', 'pointsAwarded',
     'rescheduledFrom', 'cancelReason', 'cancelledAt', 'remindedAt',
-    'payStatus', 'subtotal', 'vatAmount', 'whtAmount', 'total', 'billing', 'slipUrl', 'whtCertUrl', 'receiptUrl', 'paidAt', 'note', 'saleName', 'source', 'couponCode', 'discount', 'evaluatedAt'],
+    'payStatus', 'subtotal', 'vatAmount', 'whtAmount', 'total', 'billing', 'slipUrl', 'whtCertUrl', 'receiptUrl', 'paidAt', 'note', 'saleName', 'source', 'couponCode', 'discount', 'evaluatedAt', 'checkinDist'],
   Strikes: ['id', 'userId', 'regId', 'type', 'reason', 'createdAt'],
   Templates: ['id', 'name', 'imageFileId', 'imageUrl', 'config', 'createdAt'],
   Banners: ['id', 'placement', 'month', 'title', 'subtitle', 'imageUrl', 'imageFileId', 'link', 'active', 'sort', 'createdAt'],
@@ -68,6 +68,7 @@ var DEFAULT_SETTINGS = [
   ["PERSON_NO_VAT", "TRUE", "TRUE = บุคคลธรรมดาไม่คิดภาษีมูลค่าเพิ่ม (VAT) และไม่หัก ณ ที่จ่าย"],
   ['EVAL_REQUIRED', 'TRUE', 'TRUE = ต้องทำแบบประเมินวิทยากร (เช็คเอาท์) ก่อนรับใบประกาศ'],
   ['SPEAKER_REMIND_DAYS', '3', 'ส่งอีเมลแจ้งวิทยากรก่อนวันอบรมกี่วัน'],
+  ['CHECKIN_RADIUS_M', '100', 'เช็คอินได้เฉพาะในรัศมีกี่เมตรจากพิกัดสถานที่อบรม (0 = ไม่ตรวจตำแหน่ง)'],
   ["QUOTE_EMAIL", "", "อีเมลรับแจ้งคำขอใบเสนอราคา (ว่าง = ส่งถึงผู้ดูแลระบบทุกคน)"],
   ['EMAIL_REG_SUBJECT', "ยืนยันการลงทะเบียนอบรม: {หลักสูตร}", 'หัวข้ออีเมลยืนยันการลงทะเบียน'],
   ['EMAIL_REG_BODY', "เรียน {ชื่อ}\n\nท่านได้ลงทะเบียนอบรมหลักสูตร **{หลักสูตร}** เรียบร้อยแล้ว\n\nวันที่: **{วันที่}**\nเวลา: {เวลา}\nสถานที่: {สถานที่}\nแผนที่การเดินทาง: {แผนที่}\n\n{ข้อมูลการชำระเงิน}\n\nเลขที่การลงทะเบียน: {เลขที่ลงทะเบียน}\nไฟล์แนบ .ics สามารถเพิ่มลงปฏิทินของท่านได้ (แจ้งเตือนล่วงหน้า 1 วัน)\nดูรายละเอียดและเอกสารประกอบได้ที่เมนู “การอบรมของฉัน”: {ลิงก์เว็บ}\n\nขอแสดงความนับถือ\n{หน่วยงาน}\n{ติดต่อ}", 'เนื้อหาอีเมลยืนยันการลงทะเบียน'],
@@ -373,8 +374,17 @@ def_('checkin', 'user', function (p, user) {
   if (nowD > close) throw new Error('การอบรมรอบนี้จบไปแล้ว');
   var r = readTable_('Registrations').filter(function (x) { return x.userId === user.id && x.sessionId === s.id && x.status !== 'cancelled'; })[0];
   if (!r) throw new Error('ไม่พบการลงทะเบียนของท่านในรอบนี้ กรุณาติดต่อเจ้าหน้าที่');
+  var dist = '';
   if (!r.checkedInAt) {
-    update_('Registrations', r.id, { checkedInAt: now_(), status: 'attended', attendedAt: now_() });
+    var radius = Number(getSetting_('CHECKIN_RADIUS_M') || defaultSetting_('CHECKIN_RADIUS_M') || 0);
+    var sLat = Number(s.lat), sLng = Number(s.lng);
+    if (radius > 0 && sLat && sLng) {
+      if (p.lat === undefined || p.lat === null || p.lat === '' || isNaN(Number(p.lat))) throw new Error('กรุณาเปิดตำแหน่ง (Location) และกดอนุญาตให้เว็บไซต์เข้าถึงตำแหน่ง ระบบให้เช็คอินได้เฉพาะที่สถานที่อบรม ในรัศมี ' + radius + ' เมตร');
+      dist = Math.round(distM_(sLat, sLng, Number(p.lat), Number(p.lng)));
+      var slack = Math.min(Math.max(Number(p.acc) || 0, 0), 50);
+      if (dist - slack > radius) throw new Error('ตำแหน่งของท่านอยู่ห่างจากสถานที่อบรมประมาณ ' + (dist >= 1000 ? (dist / 1000).toFixed(1) + ' กม.' : dist + ' เมตร') + ' ต้องอยู่ในรัศมี ' + radius + ' เมตรจึงจะเช็คอินได้ หากอยู่ที่สถานที่อบรมแล้ว กรุณาลองใหม่ในที่โล่ง หรือติดต่อเจ้าหน้าที่');
+    }
+    update_('Registrations', r.id, { checkedInAt: now_(), status: 'attended', attendedAt: now_(), checkinDist: dist });
     afterAttend_([r.id]);
   }
   var c = findBy_('Courses', 'id', s.courseId) || {};
@@ -522,6 +532,11 @@ def_('saveSession', 'admin', function (p) {
   if (s.id) { var old = findBy_('Sessions', 'id', s.id); if (old && (old.speakerEmail !== s.speakerEmail || dateStr_(old.date) !== s.date)) s.speakerNotifiedAt = ''; }
   var c = findBy_('Courses', 'id', s.courseId);
   if (!s.templateId) s.templateId = c && c.defaultTemplateId || '';
+  if (s.lat === undefined || s.lat === '' || s.lat === null) { var ll = latLngFromText_(s.mapUrl); if (ll) { s.lat = ll[0]; s.lng = ll[1]; } }
+  if (s.lat !== undefined && s.lat !== '' && s.lat !== null) {
+    s.lat = Number(s.lat); s.lng = Number(s.lng);
+    if (!(Math.abs(s.lat) <= 90 && Math.abs(s.lng) <= 180) || isNaN(s.lat) || isNaN(s.lng)) throw new Error('พิกัดสถานที่ไม่ถูกต้อง');
+  }
   if (typeof s.fees === 'object') s.fees = JSON.stringify(s.fees);
   if (s.id) update_('Sessions', s.id, s);
   else { s.id = uid_('S'); s.createdAt = now_(); s.status = s.status || 'open'; s.checkinCode = checkinCode_(); insert_('Sessions', s); }
@@ -1153,6 +1168,17 @@ function bySort_(a, b) { return Number(a.sort || 0) - Number(b.sort || 0); }
 function parseJson_(s) { try { return typeof s === 'string' ? JSON.parse(s || '{}') : (s || {}); } catch (e) { return {}; } }
 function isTrue_(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
 function uid_(p) { return p + Utilities.formatDate(new Date(), 'UTC', 'yyMMdd') + Math.random().toString(36).slice(2, 7).toUpperCase(); }
+function latLngFromText_(t) {
+  t = String(t || ''); try { t = decodeURIComponent(t); } catch (e) { }
+  var m = t.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/) || t.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/)
+    || t.match(/[?&](?:q|query|ll|center|destination|daddr)=(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/) || t.match(/^\s*(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/);
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+function distM_(lat1, lng1, lat2, lng2) {
+  var R = 6371000, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLng = (lng2 - lng1) * rad;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 function checkinCode_() { return String(Math.floor(100000 + Math.random() * 900000)); }
 function now_() { return new Date().toISOString(); }
 function tz_() { return Session.getScriptTimeZone() || 'Asia/Bangkok'; }
@@ -1236,7 +1262,7 @@ function defaultSetting_(k) { var d = DEFAULT_SETTINGS.filter(function (s) { ret
 function publicSettings_() {
   var o = {};
   ['ORG_NAME', 'ORG_SHORT', 'LOGO_URL', 'CONTACT', 'HERO_SPEED', 'REWARDS_ENABLED', 'MAX_ACTIVE_BOOKINGS', 'CHANGE_DAYS_BEFORE', 'STRIKE_LIMIT',
-    'VAT_RATE', 'WHT_RATE', 'PAY_INFO', 'CERT_VALID_MONTHS', 'LUCKY_COST', 'POINTS_PER_HOUR', 'CHECKIN_OPEN_MINUTES', 'SALES_LIST', 'SOURCE_LIST', 'WHT_PAYEE_INFO', 'PERSON_NO_VAT', 'EVAL_REQUIRED', 'SPEAKER_REMIND_DAYS'].forEach(function (k) { o[k] = getSetting_(k) || defaultSetting_(k); });
+    'VAT_RATE', 'WHT_RATE', 'PAY_INFO', 'CERT_VALID_MONTHS', 'LUCKY_COST', 'POINTS_PER_HOUR', 'CHECKIN_OPEN_MINUTES', 'SALES_LIST', 'SOURCE_LIST', 'WHT_PAYEE_INFO', 'PERSON_NO_VAT', 'EVAL_REQUIRED', 'SPEAKER_REMIND_DAYS', 'CHECKIN_RADIUS_M'].forEach(function (k) { o[k] = getSetting_(k) || defaultSetting_(k); });
   o.APP_URL = siteUrl_();
   return o;
 }
